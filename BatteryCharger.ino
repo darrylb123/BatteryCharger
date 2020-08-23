@@ -10,8 +10,25 @@
 #include <ESP8266WebServer.h>
 
 const int RELAYS = 8;
-const int CHARGEMINUTES = 30;
-const int CHARGETIME = CHARGEMINUTES * 60 * 1000; // 30 Minutes
+// An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
+// Volts                     0, 1,  2,  3,  4,  5,  6,  7,  8,    9,    10,   11,   12, 13, 14, 15, 16
+const int CHARGEMINUTES[] = {1, 1,  1,  1,  1,  30, 30, 30, 240,  240,  240,  100,  30, 5,  1,  1,  1};
+const int CHARGETIME[] = {  CHARGEMINUTES[0] * 60000, 
+                            CHARGEMINUTES[1] * 60000,
+                            CHARGEMINUTES[2] * 60000,
+                            CHARGEMINUTES[3] * 60000,
+                            CHARGEMINUTES[4] * 60000,
+                            CHARGEMINUTES[5] * 60000,
+                            CHARGEMINUTES[6] * 60000,
+                            CHARGEMINUTES[7] * 60000,
+                            CHARGEMINUTES[8] * 60000,
+                            CHARGEMINUTES[9] * 60000,
+                            CHARGEMINUTES[10] * 60000,
+                            CHARGEMINUTES[11] * 60000,
+                            CHARGEMINUTES[12] * 60000,
+                            CHARGEMINUTES[14] * 60000,
+                            CHARGEMINUTES[15] * 60000,
+                            CHARGEMINUTES[16] * 60000 };
 const byte        DNS_PORT = 53; 
 const int sensorPin = A0;
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
@@ -23,7 +40,7 @@ ESP8266WebServer  webServer(80);          // HTTP server
 int gpioPin[] = { 16,5,4,14,12,13,0,2 }; // NodeMCU pin definitions
 
 
-int batVolts[RELAYS];
+float batVolts[RELAYS];
 int currentCharger = -1 ;                   
 int sensorValue = 0;
 int firstBoot = 1;
@@ -56,20 +73,20 @@ table, th, td {\
 }\
 </style>";
 
-    String bodyHTML =  "<H1> Battery Charger - ";
-    bodyHTML = bodyHTML + CHARGEMINUTES + " minutes/battery </H1>";
+    String bodyHTML =  "<H1> Battery Charger </H1>";
+    // bodyHTML = bodyHTML + CHARGEMINUTES[(int)batVolts[currentCharger]] + " minutes/battery </H1>";
 
     String footerHTML =   "</body></html>";
     
-    int minutes = ((CHARGETIME -(new_global_millis - last_global_millis )) / 60000) + 1; // Calculate charging time on this battery
+    int minutes = ((CHARGETIME[(int)batVolts[currentCharger]] -(new_global_millis - last_global_millis )) / 60000) + 1; // Calculate charging time on this battery
     String batString = "<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH>\n";
    
     int j;
     for (int i = 0; i <RELAYS; i++){
       j=i+1;
       if ( i == currentCharger )
-        batString = batString + "<TR><TD style=\"background-color:Tomato;\">" + j + "</TD><TD>"+ String(batVolts[i] * CALIBRATION, 2) + " (" +batVolts[i] + ")<TD>" + minutes + "</TD></TR>\n";
-      else batString = batString + "<TR><TD>" + j + "</TD><TD>"+ String(batVolts[i] * CALIBRATION, 2)+ " (" +batVolts[i] + ")</TD><TD></TD></TR>\n";
+        batString = batString + "<TR><TD style=\"background-color:Tomato;\">" + j + "</TD><TD>"+ String(batVolts[i], 2) + "<TD>" + CHARGEMINUTES[(int)batVolts[i]] + " (" + minutes +  ")</TD></TR>\n";
+      else batString = batString + "<TR><TD>" + j + "</TD><TD>"+ String(batVolts[i], 2)+ " </TD><TD>"+ CHARGEMINUTES[(int)batVolts[i]] + "</TD></TR>\n";
     }
     batString = batString + "</TABLE>";
     String responseHTML = headerHTML + bodyHTML + batString + footerHTML;
@@ -97,12 +114,11 @@ int pickbattery(int num) {
 void loop() {
   dnsServer.processNextRequest();
   webServer.handleClient(); 
-  batVolts[currentCharger] = analogRead(sensorPin);
+  batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION;
   new_global_millis = millis();
   // See if we have rolled over, delayed enough or current battery has < 1.2V
-  if (( new_global_millis > (last_global_millis + CHARGETIME))
+  if (( new_global_millis > (last_global_millis + CHARGETIME[(int)batVolts[currentCharger]]))
   ||( new_global_millis < last_global_millis) 
-  || (batVolts[currentCharger] < 100 )
   || firstBoot ) {
     last_global_millis = new_global_millis;
     if (currentCharger >= RELAYS-1 ) {
