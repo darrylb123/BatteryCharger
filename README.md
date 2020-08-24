@@ -8,4 +8,4 @@ The Wemos operates as an AP with captive portal. Connecting to the AP with a mob
 
 The relay board is connected to D2-D9 to Relays 1-8.
 
-![alt text](Wiring,png "Wiring Diagram")
+![alt text](Wiring.png "Wiring Diagram")
