@@ -5,9 +5,14 @@
    Global variables use 50,732 bytes (61%) of dynamic memory, leaving 31,336 bytes for local variables. Maximum is 81,920 bytes.
 */
 
+#if defined(ESP8266)
 #include <ESP8266WiFi.h>
-#include "./DNSServer.h"                  // Patched lib
 #include <ESP8266WebServer.h>
+#elif defined(ESP32)
+#include <WebServer.h>
+#endif
+
+#include "./DNSServer.h"                  // Patched lib
 
 const int RELAYS = 8;
 // An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
@@ -35,10 +40,19 @@ const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / 
 // Capture DNS requests on port 53
 IPAddress         apIP(10, 10, 10, 1);    // Private network for server
 DNSServer         dnsServer;              // Create the DNS object
+
+
+#if defined(ESP8266)
 ESP8266WebServer  webServer(80);          // HTTP server
+#elif defined(ESP32)
+WebServer  webServer(80); 
+#endif
 
+#if defined(ESP8266)
 int gpioPin[] = { 16,5,4,14,12,13,0,2 }; // NodeMCU pin definitions
-
+#elif defined(ESP32)
+int gpioPin[] = { 26,25,17,16,27,14,12,13 }; 
+#endif
 
 float batVolts[RELAYS];
 int currentCharger = -1 ;                   
