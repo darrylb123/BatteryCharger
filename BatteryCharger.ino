@@ -48,8 +48,9 @@ ESP8266WebServer  webServer(80);          // HTTP server
 WebServer  webServer(80); 
 #endif
 
+// Wemos pin definitions Batteries 1 - 8
 #if defined(ESP8266)
-int gpioPin[] = { 16,5,4,14,12,13,0,2 }; // NodeMCU pin definitions
+int gpioPin[] = { 16,5,4,14,12,13,0,2 }; 
 #elif defined(ESP32)
 int gpioPin[] = { 26,25,17,16,27,14,12,13 }; 
 #endif
