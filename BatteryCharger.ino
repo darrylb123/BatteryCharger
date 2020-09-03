@@ -9,6 +9,9 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #elif defined(ESP32)
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WiFiAP.h>
 #include <WebServer.h>
 #endif
 
@@ -35,8 +38,8 @@ const int CHARGETIME[] = {  CHARGEMINUTES[0] * 60000,
                             CHARGEMINUTES[15] * 60000,
                             CHARGEMINUTES[16] * 60000 };
 const byte        DNS_PORT = 53; 
-const int sensorPin = A0;
-const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
+
+
 // Capture DNS requests on port 53
 IPAddress         apIP(10, 10, 10, 1);    // Private network for server
 DNSServer         dnsServer;              // Create the DNS object
@@ -51,8 +54,12 @@ WebServer  webServer(80);
 // Wemos pin definitions Batteries 1 - 8
 #if defined(ESP8266)
 int gpioPin[] = { 16,5,4,14,12,13,0,2 }; 
+const int sensorPin = A0;
+const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
 #elif defined(ESP32)
 int gpioPin[] = { 26,25,17,16,27,14,12,13 }; 
+const float CALIBRATION = 0.000952128; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
+const int sensorPin = 34;
 #endif
 
 float batVolts[RELAYS];
@@ -65,7 +72,7 @@ int32_t new_global_millis = 0;
 void setup() {
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-  WiFi.softAP("Battery Charger");
+  WiFi.softAP("BatteryChargerE32");
   Serial.begin(115200);
   
   // if DNSServer is started with "*" for domain name, it will reply with
@@ -113,6 +120,7 @@ table, th, td {\
     digitalWrite(gpioPin[i], HIGH);
   }
   last_global_millis = millis();
+  // pinMode(sensorPin, INPUT);
 }
 
 int pickbattery(int num) {
@@ -120,8 +128,9 @@ int pickbattery(int num) {
      digitalWrite(gpioPin[i], HIGH);
   }
   digitalWrite(gpioPin[num], LOW);
+  int t = analogRead(sensorPin);
   String bat = "Selected battery ";
-  bat = bat + num;
+  bat = bat + num + " " + t + " " + String(t * CALIBRATION, 2);
   Serial.println(bat);
 }
 
