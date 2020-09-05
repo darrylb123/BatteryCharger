@@ -10,11 +10,13 @@
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+#include <Ticker.h>
 #elif defined(ESP32)
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WiFiAP.h>
 #include <WebServer.h>
+#include <Ticker.h>
 #endif
 #if defined(STATION)
 #include "./MySSID.h"
@@ -47,11 +49,13 @@ const int CHARGETIME[] = {  CHARGEMINUTES[0] * 60000,
                             CHARGEMINUTES[16] * 60000 };
 const byte        DNS_PORT = 53; 
 
-
+Ticker logger;
 
 
 #if defined(ESP8266)
 ESP8266WebServer  webServer(80);          // HTTP server
+
+
 #elif defined(ESP32)
 WebServer  webServer(80); 
 #endif
@@ -63,7 +67,8 @@ const int sensorPin = A0;
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
 #elif defined(ESP32)
 int gpioPin[] = { 26,25,17,16,27,14,12,13 }; 
-const float CALIBRATION = 0.000952128; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
+
+const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
 #endif
 
@@ -74,8 +79,17 @@ int firstBoot = 1;
 int32_t last_global_millis = 0;
 int32_t new_global_millis = 0;
 
+void logbat (){
+  int t = analogRead(sensorPin);
+  String bat = "Selected battery ";
+  int num = currentCharger + 1;
+  bat = bat + num + " " + t + " " + String(t * CALIBRATION, 2);
+  Serial.println(bat);
+}
+
 void setup() {
   Serial.begin(115200);
+  logger.attach(10,logbat);
 #if defined(SOFTAP)
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
@@ -150,10 +164,6 @@ int pickbattery(int num) {
      digitalWrite(gpioPin[i], HIGH);
   }
   digitalWrite(gpioPin[num], LOW);
-  int t = analogRead(sensorPin);
-  String bat = "Selected battery ";
-  bat = bat + num + " " + t + " " + String(t * CALIBRATION, 2);
-  Serial.println(bat);
 }
 
 
