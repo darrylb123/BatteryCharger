@@ -4,6 +4,8 @@
    Sketch uses 300,640 bytes (69%) of program storage space. Maximum is 434,160 bytes.
    Global variables use 50,732 bytes (61%) of dynamic memory, leaving 31,336 bytes for local variables. Maximum is 81,920 bytes.
 */
+#define STATION 1
+// #define SOFTAP 1
 
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>
@@ -14,9 +16,15 @@
 #include <WiFiAP.h>
 #include <WebServer.h>
 #endif
-
+#if defined(STATION)
+#include "./MySSID.h"
+#elif defined(SOFTAP)
 #include "./DNSServer.h"                  // Patched lib
+// Capture DNS requests on port 53
+IPAddress         apIP(10, 10, 10, 1);    // Private network for server
+DNSServer         dnsServer;              // Create the DNS object
 
+#endif
 const int RELAYS = 8;
 // An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
 // Volts                     0, 1,  2,  3,  4,  5,  6,  7,  8,    9,    10,   11,   12, 13, 14, 15, 16
@@ -40,9 +48,6 @@ const int CHARGETIME[] = {  CHARGEMINUTES[0] * 60000,
 const byte        DNS_PORT = 53; 
 
 
-// Capture DNS requests on port 53
-IPAddress         apIP(10, 10, 10, 1);    // Private network for server
-DNSServer         dnsServer;              // Create the DNS object
 
 
 #if defined(ESP8266)
@@ -70,14 +75,31 @@ int32_t last_global_millis = 0;
 int32_t new_global_millis = 0;
 
 void setup() {
+  Serial.begin(115200);
+#if defined(SOFTAP)
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
   WiFi.softAP("BatteryChargerE32");
-  Serial.begin(115200);
-  
   // if DNSServer is started with "*" for domain name, it will reply with
   // provided IP to all DNS request
   dnsServer.start(DNS_PORT, "*", apIP);
+#elif defined(STATION)
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(mySSID,myPSK);
+  Serial.println("");
+    // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.print("Connected to ");
+  Serial.println(mySSID);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+#endif
+  
+
   // replay to all requests with same HTML
   webServer.onNotFound([]() {
 
@@ -136,7 +158,9 @@ int pickbattery(int num) {
 
 
 void loop() {
+#if defined(SOFTAP)
   dnsServer.processNextRequest();
+#endif
   webServer.handleClient(); 
   batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION;
   new_global_millis = millis();
