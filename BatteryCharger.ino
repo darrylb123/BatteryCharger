@@ -50,6 +50,7 @@ const int CHARGETIME[] = {  CHARGEMINUTES[0] * 60000,
 const byte        DNS_PORT = 53; 
 
 Ticker logger;
+Ticker minutes;
 
 
 #if defined(ESP8266)
@@ -76,20 +77,34 @@ float batVolts[RELAYS];
 int currentCharger = -1 ;                   
 int sensorValue = 0;
 int firstBoot = 1;
+int lastMinutes,lastHour,lastDay;
 int32_t last_global_millis = 0;
 int32_t new_global_millis = 0;
+int startMinutes = 0; 
+int startHours = 0;
+int startDays = 0;
+
 
 void logbat (){
   int t = analogRead(sensorPin);
   String bat = "Selected battery ";
+  startMinutes++;
+  if ( ! (startMinutes % 60) ){
+    startHours++;
+  } 
+  if ( ! (startMinutes % 1440) ){
+    startDays++;
+  }
+  String theTime = "Current Time: ";
+  theTime = theTime + " " + startMinutes + " minutes " + startHours + " hours " + startDays + " days ";
   int num = currentCharger + 1;
-  bat = bat + num + " " + t + " " + String(t * CALIBRATION, 2);
+  bat = theTime + " " + bat + num + " " + t + " " + String(t * CALIBRATION, 2);
   Serial.println(bat);
 }
 
 void setup() {
   Serial.begin(115200);
-  logger.attach(10,logbat);
+  logger.attach(60,logbat);
 #if defined(SOFTAP)
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
@@ -118,7 +133,7 @@ void setup() {
   webServer.onNotFound([]() {
 
     String headerHTML =   "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"10\">\
-                      <title>CaptivePortal</title></head><body>\
+                      <title>Battery Charger</title></head><body>\
                       <style>\
                       table {\
   border-collapse: collapse;\
@@ -132,11 +147,14 @@ table, th, td {\
 </style>";
 
     String bodyHTML =  "<H1> Battery Charger </H1>";
+    String timeSinceBoot = "Time since boot ";
+    timeSinceBoot = timeSinceBoot + " " + startMinutes + " minutes " + startHours + " hours " + startDays + " days<BR>";
+    bodyHTML = bodyHTML + timeSinceBoot;
     // bodyHTML = bodyHTML + CHARGEMINUTES[(int)batVolts[currentCharger]] + " minutes/battery </H1>";
 
     String footerHTML =   "</body></html>";
     
-    int minutes = ((CHARGETIME[(int)batVolts[currentCharger]] -(new_global_millis - last_global_millis )) / 60000) + 1; // Calculate charging time on this battery
+    int minutes = CHARGEMINUTES[(int)batVolts[currentCharger]] - ( startMinutes - lastMinutes ) ; // Calculate charging time on this battery
     String batString = "<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH>\n";
    
     int j;
@@ -155,8 +173,7 @@ table, th, td {\
     pinMode(gpioPin[i], OUTPUT);
     digitalWrite(gpioPin[i], HIGH);
   }
-  last_global_millis = millis();
-  // pinMode(sensorPin, INPUT);
+  lastMinutes = startMinutes;
 }
 
 int pickbattery(int num) {
@@ -173,12 +190,11 @@ void loop() {
 #endif
   webServer.handleClient(); 
   batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION;
-  new_global_millis = millis();
   // See if we have rolled over, delayed enough or current battery has < 1.2V
-  if (( new_global_millis > (last_global_millis + CHARGETIME[(int)batVolts[currentCharger]]))
-  ||( new_global_millis < last_global_millis) 
+  if (( startMinutes > (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))
+  ||( startMinutes < lastMinutes) 
   || firstBoot ) {
-    last_global_millis = new_global_millis;
+    lastMinutes = startMinutes;
     if (currentCharger >= RELAYS-1 ) {
       currentCharger = -1;
       firstBoot = 0;
