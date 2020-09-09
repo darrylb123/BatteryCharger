@@ -31,22 +31,7 @@ const int RELAYS = 8;
 // An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
 // Volts                     0, 1,  2,  3,  4,  5,  6,  7,  8,    9,    10,   11,   12, 13, 14, 15, 16
 const int CHARGEMINUTES[] = {1, 1,  1,  1,  1,  30, 30, 30, 240,  240,  240,  100,  30, 5,  1,  1,  1};
-const int CHARGETIME[] = {  CHARGEMINUTES[0] * 60000, 
-                            CHARGEMINUTES[1] * 60000,
-                            CHARGEMINUTES[2] * 60000,
-                            CHARGEMINUTES[3] * 60000,
-                            CHARGEMINUTES[4] * 60000,
-                            CHARGEMINUTES[5] * 60000,
-                            CHARGEMINUTES[6] * 60000,
-                            CHARGEMINUTES[7] * 60000,
-                            CHARGEMINUTES[8] * 60000,
-                            CHARGEMINUTES[9] * 60000,
-                            CHARGEMINUTES[10] * 60000,
-                            CHARGEMINUTES[11] * 60000,
-                            CHARGEMINUTES[12] * 60000,
-                            CHARGEMINUTES[14] * 60000,
-                            CHARGEMINUTES[15] * 60000,
-                            CHARGEMINUTES[16] * 60000 };
+
 const byte        DNS_PORT = 53; 
 
 Ticker logger;
@@ -74,6 +59,7 @@ const int sensorPin = 34;
 #endif
 
 float batVolts[RELAYS];
+int charged[RELAYS];
 int currentCharger = -1 ;                   
 int sensorValue = 0;
 int firstBoot = 1;
