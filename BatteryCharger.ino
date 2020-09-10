@@ -82,7 +82,7 @@ void logbat (){
   }
   String theTime = "Current Time: ";
   theTime = theTime + " " + startMinutes + " minutes " + startHours + " hours " + startDays + " days ";
-  int num = currentCharger + 1;
+  int num = currentCharger ;
   bat = theTime + " " + bat + num + " " + t + " " + String(t * CALIBRATION, 2);
   Serial.println(bat);
 }
@@ -142,7 +142,7 @@ table, th, td {\
     String footerHTML =   "</body></html>";
     
     int minutes = CHARGEMINUTES[(int)batVolts[currentCharger]] - ( startMinutes - lastMinutes ) ; // Calculate charging time on this battery
-    String batString = "<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH>\n";
+    String batString = "<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH><TH>Flags</TH>\n";
    
     int j;
     for (int i = 0; i <RELAYS; i++){
@@ -161,6 +161,8 @@ table, th, td {\
     digitalWrite(gpioPin[i], HIGH);
   }
   pickBattery(-1);
+  pickBattery(0);
+  currentCharger = 0;
   lastMinutes = startMinutes;
 }
 
@@ -204,13 +206,17 @@ void loop() {
   if (( startMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))
   ||( startMinutes < lastMinutes)) {
     lastMinutes = startMinutes;
-    if (currentCharger >= RELAYS ) {
+    if (currentCharger < RELAYS ) {
+      pickBattery(currentCharger);
+      currentCharger++;
+    } else {
       currentCharger = 0;
       pickBattery(-1);
     }
       
       
-      pickBattery(++currentCharger);
+      
+      currentCharger++;
   }
   //Serial.println(responseHTML);
   
