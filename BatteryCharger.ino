@@ -31,7 +31,7 @@ const int RELAYS = 8;
 // An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
 // Volts                     0, 1,  2,  3,  4,  5,  6,  7,  8,    9,    10,   11,   12, 13, 14, 15, 16
 const int CHARGEMINUTES[] = {1, 1,  1,  1,  1,  30, 30, 30, 240,  240,  240,  100,  30, 5,  1,  1,  1};
-
+const float fullyCharged = 12.5;
 const byte        DNS_PORT = 53; 
 
 Ticker logger;
@@ -59,13 +59,12 @@ const int sensorPin = 34;
 #endif
 
 float batVolts[RELAYS];
-int charged[RELAYS];
-int currentCharger = -1 ;                   
+int batteryCharged[RELAYS];
+int batteryConnected[RELAYS];
+int currentCharger = 0 ;                   
 int sensorValue = 0;
 int firstBoot = 1;
 int lastMinutes,lastHour,lastDay;
-int32_t last_global_millis = 0;
-int32_t new_global_millis = 0;
 int startMinutes = 0; 
 int startHours = 0;
 int startDays = 0;
@@ -87,6 +86,8 @@ void logbat (){
   bat = theTime + " " + bat + num + " " + t + " " + String(t * CALIBRATION, 2);
   Serial.println(bat);
 }
+
+
 
 void setup() {
   Serial.begin(115200);
@@ -147,8 +148,8 @@ table, th, td {\
     for (int i = 0; i <RELAYS; i++){
       j=i+1;
       if ( i == currentCharger )
-        batString = batString + "<TR><TD style=\"background-color:Tomato;\">" + j + "</TD><TD>"+ String(batVolts[i], 2) + "<TD>" + CHARGEMINUTES[(int)batVolts[i]] + " (" + minutes +  ")</TD></TR>\n";
-      else batString = batString + "<TR><TD>" + j + "</TD><TD>"+ String(batVolts[i], 2)+ " </TD><TD>"+ CHARGEMINUTES[(int)batVolts[i]] + "</TD></TR>\n";
+        batString = batString + "<TR><TD style=\"background-color:Tomato;\">" + j + "</TD><TD>"+ String(batVolts[i], 2) + "<TD>" + CHARGEMINUTES[(int)batVolts[i]] + " (" + minutes +  ")</TD><TD>"+ batteryCharged[i] + batteryConnected[i] + "</TR>\n";
+      else batString = batString + "<TR><TD>" + j + "</TD><TD>"+ String(batVolts[i], 2)+ " </TD><TD>"+ CHARGEMINUTES[(int)batVolts[i]] + "</TD><TD>"+ batteryCharged[i] + batteryConnected[i] + "</TR>\n";
     }
     batString = batString + "</TABLE>";
     String responseHTML = headerHTML + bodyHTML + batString + footerHTML;
@@ -159,14 +160,37 @@ table, th, td {\
     pinMode(gpioPin[i], OUTPUT);
     digitalWrite(gpioPin[i], HIGH);
   }
+  pickBattery(-1);
   lastMinutes = startMinutes;
 }
 
-int pickbattery(int num) {
+// Change the relays, either to the next relay or scan all for voltages
+int pickBattery(int num) {
   for(int i = 0; i < RELAYS; i++) {
      digitalWrite(gpioPin[i], HIGH);
   }
-  digitalWrite(gpioPin[num], LOW);
+  if(num >= 0) { //
+    digitalWrite(gpioPin[num], LOW);
+  } else { // scan all the batteries for voltage
+    for(int i = 0; i < RELAYS; i++){
+      digitalWrite(gpioPin[i], LOW);
+      delay(100);
+      batVolts[i] = analogRead(sensorPin) * CALIBRATION;
+      if (batVolts[i] > fullyCharged) 
+        batteryCharged[i] =1;
+      else
+        batteryCharged[i] =0;
+      if (batVolts[i] > 4.0)
+        batteryConnected[i] =1;
+      else
+        batteryConnected[i] = 0;
+      Serial.print(" ");
+      Serial.print(batVolts[i]);
+      digitalWrite(gpioPin[i], HIGH);
+    }
+    Serial.println(" ");
+    
+  }
 }
 
 
@@ -177,20 +201,19 @@ void loop() {
   webServer.handleClient(); 
   batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION;
   // See if we have rolled over, delayed enough or current battery has < 1.2V
-  if (( startMinutes > (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))
-  ||( startMinutes < lastMinutes) 
-  || firstBoot ) {
+  if (( startMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))
+  ||( startMinutes < lastMinutes)) {
     lastMinutes = startMinutes;
-    if (currentCharger >= RELAYS-1 ) {
-      currentCharger = -1;
-      firstBoot = 0;
+    if (currentCharger >= RELAYS ) {
+      currentCharger = 0;
+      pickBattery(-1);
     }
       
       
-      pickbattery(++currentCharger);
+      pickBattery(++currentCharger);
   }
   //Serial.println(responseHTML);
   
-  delay(500);
+  delay(100);
   
 }
