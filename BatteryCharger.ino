@@ -31,7 +31,7 @@ const int RELAYS = 8;
 // An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
 // Volts                     0, 1,  2,  3,  4,  5,  6,  7,  8,    9,    10,   11,   12, 13, 14, 15, 16
 const int CHARGEMINUTES[] = {1, 1,  1,  1,  1,  30, 30, 30, 240,  240,  240,  100,  30, 5,  1,  1,  1};
-const float fullyCharged = 12.5;
+const float fullyCharged = 11.9;
 const byte        DNS_PORT = 53; 
 
 Ticker logger;
@@ -61,6 +61,7 @@ const int sensorPin = 34;
 float batVolts[RELAYS];
 int batteryCharged[RELAYS];
 int batteryConnected[RELAYS];
+int allCharged = 0;
 int currentCharger = 0 ;                   
 int sensorValue = 0;
 int firstBoot = 1;
@@ -152,6 +153,8 @@ table, th, td {\
       else batString = batString + "<TR><TD>" + j + "</TD><TD>"+ String(batVolts[i], 2)+ " </TD><TD>"+ CHARGEMINUTES[(int)batVolts[i]] + "</TD><TD>"+ batteryCharged[i] + batteryConnected[i] + "</TR>\n";
     }
     batString = batString + "</TABLE>";
+    if (allCharged)
+      batString = batString + "<H3>All Charged, delaying next charge cycle until tomorrow<h3>" ;
     String responseHTML = headerHTML + bodyHTML + batString + footerHTML;
     webServer.send(200, "text/html", responseHTML);
   });
@@ -171,9 +174,10 @@ int pickBattery(int num) {
   for(int i = 0; i < RELAYS; i++) {
      digitalWrite(gpioPin[i], HIGH);
   }
-  if(num >= 0) { //
+  if(num >= 0 && !allCharged) { //
     digitalWrite(gpioPin[num], LOW);
   } else { // scan all the batteries for voltage
+    allCharged = 1;
     for(int i = 0; i < RELAYS; i++){
       digitalWrite(gpioPin[i], LOW);
       delay(100);
@@ -186,6 +190,12 @@ int pickBattery(int num) {
         batteryConnected[i] =1;
       else
         batteryConnected[i] = 0;
+      if (batteryConnected[i] && !batteryCharged[i]) {
+          allCharged = 0;
+      } else {
+        lastDay = startDays +1;
+      }
+        
       Serial.print(" ");
       Serial.print(batVolts[i]);
       digitalWrite(gpioPin[i], HIGH);
@@ -203,20 +213,20 @@ void loop() {
   webServer.handleClient(); 
   batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION;
   // See if we have rolled over, delayed enough or current battery has < 1.2V
-  if (( startMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))
-  ||( startMinutes < lastMinutes)) {
+  // if all batteries are charged, pickBattery will set the lastDay 1 in front so that it waits until then to attempt charging again
+  if (lastDay == startDays && (( startMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))
+  ||( startMinutes < lastMinutes))) {
     lastMinutes = startMinutes;
+    lastDay = startDays;
     if (currentCharger < RELAYS ) {
       pickBattery(currentCharger);
       currentCharger++;
     } else {
       currentCharger = 0;
       pickBattery(-1);
-    }
+    }     
+    currentCharger++;
       
-      
-      
-      currentCharger++;
   }
   //Serial.println(responseHTML);
   
