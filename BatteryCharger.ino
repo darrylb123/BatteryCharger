@@ -66,23 +66,23 @@ int currentCharger = 0 ;
 int sensorValue = 0;
 int firstBoot = 1;
 int lastMinutes,lastHour,lastDay;
-int startMinutes = 0; 
-int startHours = 0;
-int startDays = 0;
+int runMinutes = 0; 
+int runHours = 0;
+int runDays = 0;
 
 
 void logbat (){
   int t = analogRead(sensorPin);
   String bat = "Selected battery ";
-  startMinutes++;
-  if ( ! (startMinutes % 60) ){
-    startHours++;
+  runMinutes++;
+  if ( ! (runMinutes % 60) ){
+    runHours++;
   } 
-  if ( ! (startMinutes % 1440) ){
-    startDays++;
+  if ( ! (runMinutes % 1440) ){
+    runDays++;
   }
-  String theTime = "Current Time: ";
-  theTime = theTime + " " + startMinutes + " minutes " + startHours + " hours " + startDays + " days ";
+  String theTime = "Run Time: ";
+  theTime = theTime + " " + runMinutes + " minutes " + runHours + " hours " + runDays + " days ";
   int num = currentCharger ;
   bat = theTime + " " + bat + num + " " + t + " " + String(t * CALIBRATION, 2);
   Serial.println(bat);
@@ -136,13 +136,13 @@ table, th, td {\
 
     String bodyHTML =  "<H1> Battery Charger </H1>";
     String timeSinceBoot = "Time since boot ";
-    timeSinceBoot = timeSinceBoot + " " + startMinutes + " minutes " + startHours + " hours " + startDays + " days<BR>";
+    timeSinceBoot = timeSinceBoot + " " + runMinutes + " minutes " + runHours + " hours " + runDays + " days<BR>";
     bodyHTML = bodyHTML + timeSinceBoot;
     // bodyHTML = bodyHTML + CHARGEMINUTES[(int)batVolts[currentCharger]] + " minutes/battery </H1>";
 
     String footerHTML =   "</body></html>";
     
-    int minutes = CHARGEMINUTES[(int)batVolts[currentCharger]] - ( startMinutes - lastMinutes ) ; // Calculate charging time on this battery
+    int minutes = CHARGEMINUTES[(int)batVolts[currentCharger]] - ( runMinutes - lastMinutes ) ; // Calculate charging time on this battery
     String batString = "<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH><TH>Flags</TH>\n";
    
     int j;
@@ -166,7 +166,7 @@ table, th, td {\
   pickBattery(-1);
   pickBattery(0);
   currentCharger = 0;
-  lastMinutes = startMinutes;
+  lastMinutes = runMinutes;
 }
 
 // Change the relays, either to the next relay or scan all for voltages
@@ -193,7 +193,7 @@ int pickBattery(int num) {
       if (batteryConnected[i] && !batteryCharged[i]) {
           allCharged = 0;
       } else {
-        lastDay = startDays +1;
+        lastDay = runDays +1;
       }
         
       Serial.print(" ");
@@ -214,10 +214,10 @@ void loop() {
   batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION;
   // See if we have rolled over, delayed enough or current battery has < 1.2V
   // if all batteries are charged, pickBattery will set the lastDay 1 in front so that it waits until then to attempt charging again
-  if (lastDay == startDays && (( startMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))
-  ||( startMinutes < lastMinutes))) {
-    lastMinutes = startMinutes;
-    lastDay = startDays;
+  if (lastDay == runDays && (( runMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))
+  ||( runMinutes < lastMinutes))) {
+    lastMinutes = runMinutes;
+    lastDay = runDays;
     if (currentCharger < RELAYS ) {
       pickBattery(currentCharger);
       currentCharger++;
@@ -227,6 +227,11 @@ void loop() {
     }     
     currentCharger++;
       
+  }
+  // Read the battery voltage each hour if fully charged
+  if ((runHours >lastHour) && allCharged){
+    pickBattery(-1);
+    lastHour = runHours;
   }
   //Serial.println(responseHTML);
   
