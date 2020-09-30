@@ -148,13 +148,13 @@ table, th, td {\
     int j;
     for (int i = 0; i <RELAYS; i++){
       j=i+1;
-      if ( i == currentCharger )
+      if ( i == currentCharger && !allCharged)
         batString = batString + "<TR><TD style=\"background-color:Tomato;\">" + j + "</TD><TD>"+ String(batVolts[i], 2) + "<TD>" + CHARGEMINUTES[(int)batVolts[i]] + " (" + minutes +  ")</TD><TD>"+ batteryCharged[i] + batteryConnected[i] + "</TR>\n";
       else batString = batString + "<TR><TD>" + j + "</TD><TD>"+ String(batVolts[i], 2)+ " </TD><TD>"+ CHARGEMINUTES[(int)batVolts[i]] + "</TD><TD>"+ batteryCharged[i] + batteryConnected[i] + "</TR>\n";
     }
     batString = batString + "</TABLE>";
     if (allCharged)
-      batString = batString + "<H3>All Charged, delaying next charge cycle until tomorrow<h3>" ;
+      batString = batString + "<H3>All Charged, delaying next charge cycle until tomorrow, scan in " + (60 -(runMinutes % 60)) +" minutes<h3>" ;
     String responseHTML = headerHTML + bodyHTML + batString + footerHTML;
     webServer.send(200, "text/html", responseHTML);
   });
@@ -211,7 +211,7 @@ void loop() {
   dnsServer.processNextRequest();
 #endif
   webServer.handleClient(); 
-  batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION;
+  if(!allCharged) batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION; //If no battery is selected the analog on battery1 is erronious
   // See if we have rolled over, delayed enough or current battery has < 1.2V
   // if all batteries are charged, pickBattery will set the lastDay 1 in front so that it waits until then to attempt charging again
   if (lastDay == runDays && (( runMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))
