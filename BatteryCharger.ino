@@ -86,41 +86,28 @@ void logbat (){
   int num = currentCharger ;
   bat = theTime + " " + bat + num + " " + t + " " + String(t * CALIBRATION, 2);
   Serial.println(bat);
+#if defined(STATION)
+  while (WiFi.status() != WL_CONNECTED){
+    WiFi.mode(WIFI_STA);
+    WiFi.disconnect();
+ 
+    delay(100);
+       WiFi.begin(mySSID,myPSK);
+       Serial.print("Attempting to connect to  network, SSID: ");
+        delay(5000);
+                Serial.println(mySSID);
+ 
+       Serial.println("IP address: ");
+       Serial.println(WiFi.localIP());
+ 
+ 
+  }
+#endif
 }
 
+void handlePage (){
 
-
-void setup() {
-  Serial.begin(115200);
-  logger.attach(60,logbat);
-#if defined(SOFTAP)
-  WiFi.mode(WIFI_AP);
-  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-  WiFi.softAP("BatteryChargerE32");
-  // if DNSServer is started with "*" for domain name, it will reply with
-  // provided IP to all DNS request
-  dnsServer.start(DNS_PORT, "*", apIP);
-#elif defined(STATION)
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(mySSID,myPSK);
-  Serial.println("");
-    // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.print("Connected to ");
-  Serial.println(mySSID);
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-#endif
-  
-
-  // replay to all requests with same HTML
-  webServer.onNotFound([]() {
-
-    String headerHTML =   "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"10\">\
+  String headerHTML =   "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"10\">\
                       <title>Battery Charger</title></head><body>\
                       <style>\
                       table {\
@@ -154,11 +141,44 @@ table, th, td {\
     }
     batString = batString + "</TABLE>";
     if (allCharged)
-      batString = batString + "<H3>All Charged, delaying next charge cycle until tomorrow, scan in " + (60 -(runMinutes % 60)) +" minutes<h3>" ;
+      batString = batString + "<H3>All Charged, delaying next charge cycle until needed, scan in " + (60 -(runMinutes % 60)) +" minutes<h3>" ;
     String responseHTML = headerHTML + bodyHTML + batString + footerHTML;
     webServer.send(200, "text/html", responseHTML);
-  });
+}
+
+void setup() {
+  Serial.begin(115200);
+  logger.attach(60,logbat);
+#if defined(SOFTAP)
+  WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+  WiFi.softAP("BatteryChargerE32");
+  // if DNSServer is started with "*" for domain name, it will reply with
+  // provided IP to all DNS request
+  dnsServer.start(DNS_PORT, "*", apIP);
+#elif defined(STATION)
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(mySSID,myPSK);
+  Serial.println("");
+    // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+  
+  Serial.println("");
+  Serial.print("Connected to ");
+  Serial.println(mySSID);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  delay(500);
+#endif
+  webServer.on("/",handlePage);
+  webServer.onNotFound(handlePage);
   webServer.begin();
+  
   for(int i = 0; i < RELAYS; i++) {
     pinMode(gpioPin[i], OUTPUT);
     digitalWrite(gpioPin[i], HIGH);
@@ -167,6 +187,7 @@ table, th, td {\
   pickBattery(0);
   currentCharger = 0;
   lastMinutes = runMinutes;
+  lastDay =runDays;
 }
 
 // Change the relays, either to the next relay or scan all for voltages
@@ -192,6 +213,7 @@ int pickBattery(int num) {
         batteryConnected[i] = 0;
       if (batteryConnected[i] && !batteryCharged[i]) {
           allCharged = 0;
+          lastDay = runDays;
       } else {
         lastDay = runDays +1;
       }
@@ -214,8 +236,7 @@ void loop() {
   if(!allCharged) batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION; //If no battery is selected the analog on battery1 is erronious
   // See if we have rolled over, delayed enough or current battery has < 1.2V
   // if all batteries are charged, pickBattery will set the lastDay 1 in front so that it waits until then to attempt charging again
-  if (lastDay == runDays && (( runMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))
-  ||( runMinutes < lastMinutes))) {
+  if ((!allCharged && runMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))||( runMinutes < lastMinutes)) {
     lastMinutes = runMinutes;
     lastDay = runDays;
     if (currentCharger < RELAYS ) {
@@ -225,7 +246,7 @@ void loop() {
       currentCharger = 0;
       pickBattery(-1);
     }     
-    currentCharger++;
+    //currentCharger++;
       
   }
   // Read the battery voltage each hour if fully charged
@@ -235,6 +256,6 @@ void loop() {
   }
   //Serial.println(responseHTML);
   
-  delay(100);
+  delay(200);
   
 }
