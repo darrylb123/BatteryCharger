@@ -4,8 +4,8 @@
    Sketch uses 300,640 bytes (69%) of program storage space. Maximum is 434,160 bytes.
    Global variables use 50,732 bytes (61%) of dynamic memory, leaving 31,336 bytes for local variables. Maximum is 81,920 bytes.
 */
-#define STATION 1
-// #define SOFTAP 1
+//#define STATION 1
+#define SOFTAP 1
 
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>
@@ -151,6 +151,7 @@ void setup() {
   logger.attach(60,logbat);
 #if defined(SOFTAP)
   WiFi.mode(WIFI_AP);
+  delay(2000);
   WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
   WiFi.softAP("BatteryChargerE32");
   // if DNSServer is started with "*" for domain name, it will reply with
