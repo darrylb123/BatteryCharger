@@ -4,8 +4,8 @@
    Sketch uses 300,640 bytes (69%) of program storage space. Maximum is 434,160 bytes.
    Global variables use 50,732 bytes (61%) of dynamic memory, leaving 31,336 bytes for local variables. Maximum is 81,920 bytes.
 */
-//#define STATION 1
-#define SOFTAP 1
+#define STATION 1
+//#define SOFTAP 1
 
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>
@@ -18,9 +18,8 @@
 #include <WebServer.h>
 #include <Ticker.h>
 #endif
+
 #if defined(STATION)
-#include "./MySSID.h"
-#elif defined(SOFTAP)
 #include "./DNSServer.h"                  // Patched lib
 // Capture DNS requests on port 53
 IPAddress         apIP(10, 10, 10, 1);    // Private network for server
@@ -33,6 +32,8 @@ const int RELAYS = 8;
 const int CHARGEMINUTES[] = {1, 1,  1,  1,  1,  30, 30, 30, 240,  240,  240,  100,  30, 5,  1,  1,  1};
 const float fullyCharged = 11.9;
 const byte        DNS_PORT = 53; 
+String inputString;
+int stringComplete;
 
 Ticker logger;
 Ticker minutes;
@@ -48,12 +49,15 @@ WebServer  webServer(80);
 
 // Wemos pin definitions Batteries 1 - 8
 #if defined(ESP8266)
-int gpioPin[] = { 16,5,4,14,12,13,0,2 }; 
+int gpioPin[] = { 16,5,4,14,12,13,0,2 };
+int bankPin[] = {15,15,15,15,15,15,15,15 }; // Relay bank enable pin
 const int sensorPin = A0;
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
+const String sapString = "Battery Charger";
 #elif defined(ESP32)
-int gpioPin[] = { 26,25,17,16,27,14,12,13 }; 
-
+int gpioPin[] = { 26,25,17,16,27,14,12,13 };
+int bankPin[] = {5,5,5,5,5,5,5,5 }; // Relay bank enable pin
+const String sapString = "Battery ChargerE32";
 const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
 #endif
@@ -86,25 +90,27 @@ void logbat (){
   int num = currentCharger ;
   bat = theTime + " " + bat + num + " " + t + " " + String(t * CALIBRATION, 2);
   Serial.println(bat);
-#if defined(STATION)
-  while (WiFi.status() != WL_CONNECTED){
-    WiFi.mode(WIFI_STA);
-    WiFi.disconnect();
- 
-    delay(100);
-       WiFi.begin(mySSID,myPSK);
-       Serial.print("Attempting to connect to  network, SSID: ");
-        delay(5000);
-                Serial.println(mySSID);
- 
-       Serial.println("IP address: ");
-       Serial.println(WiFi.localIP());
- 
- 
+}
+//Read a string from USB
+void serialEvent() { 
+  while (Serial.available()) {
+    // get the new byte:
+    char inChar = (char)Serial.read();
+    // add it to the inputString:
+    //Serial.print(inChar);
+    
+    // if the incoming character is a newline, set a flag
+    // so the main loop can do something about it:
+    if (inChar == '\n') {
+      // Serial.println("String Complete");
+      stringComplete = true;
+    } else {
+      inputString += inChar;
+    }
   }
-#endif
 }
 
+// Web Server page handler
 void handlePage (){
 
   String headerHTML =   "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"10\">\
@@ -146,6 +152,28 @@ table, th, td {\
     webServer.send(200, "text/html", responseHTML);
 }
 
+// Configure wifi using ESP Smartconfig app on phone
+int mySmartConfig() {
+      WiFi.beginSmartConfig();
+
+    //Wait for SmartConfig packet from mobile
+    Serial.println("Waiting for SmartConfig.");
+    while (!WiFi.smartConfigDone()) {
+      delay(500);
+      Serial.print(".");
+    }
+
+    Serial.println("");
+    Serial.println("SmartConfig received.");
+
+    //Wait for WiFi to connect to AP
+    Serial.println("Waiting for WiFi");
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+    }
+}
+
 void setup() {
   Serial.begin(115200);
   logger.attach(60,logbat);
@@ -153,27 +181,25 @@ void setup() {
   WiFi.mode(WIFI_AP);
   delay(2000);
   WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-  WiFi.softAP("BatteryChargerE32");
+  WiFi.softAP(sapString);
   // if DNSServer is started with "*" for domain name, it will reply with
   // provided IP to all DNS request
   dnsServer.start(DNS_PORT, "*", apIP);
 #elif defined(STATION)
   WiFi.mode(WIFI_STA);
-  WiFi.begin(mySSID,myPSK);
-  Serial.println("");
-    // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    WiFi.begin();
+  delay(5000);
+  if (WiFi.status() != WL_CONNECTED) {
+    mySmartConfig();
   }
+
+  Serial.println("WiFi Connected.");
+
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+ 
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
-  
-  Serial.println("");
-  Serial.print("Connected to ");
-  Serial.println(mySSID);
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
   delay(500);
 #endif
   webServer.on("/",handlePage);
@@ -182,8 +208,12 @@ void setup() {
   
   for(int i = 0; i < RELAYS; i++) {
     pinMode(gpioPin[i], OUTPUT);
+    pinMode(bankPin[i], OUTPUT);
     digitalWrite(gpioPin[i], HIGH);
+    digitalWrite(bankPin[i], LOW); // The bank pin supplies 3.3V for the optocouplers supply. LOW disables the particular bank
   }
+  pinMode(15,OUTPUT);
+  digitalWrite(15,HIGH);
   pickBattery(-1);
   pickBattery(0);
   currentCharger = 0;
@@ -198,10 +228,12 @@ int pickBattery(int num) {
   }
   if(num >= 0 && !allCharged) { //
     digitalWrite(gpioPin[num], LOW);
+    digitalWrite(bankPin[num], HIGH);
   } else { // scan all the batteries for voltage
     allCharged = 1;
     for(int i = 0; i < RELAYS; i++){
       digitalWrite(gpioPin[i], LOW);
+      digitalWrite(bankPin[num], HIGH);
       delay(100);
       batVolts[i] = analogRead(sensorPin) * CALIBRATION;
       if (batVolts[i] > fullyCharged) 
@@ -256,7 +288,23 @@ void loop() {
     lastHour = runHours;
   }
   //Serial.println(responseHTML);
-  
+
+  // Look for reset command from USB
+  serialEvent();
+  if (stringComplete) {
+    Serial.println(inputString);
+    if (inputString.substring(0)=="reset") {
+       Serial.println("Resetting Wifi Configuration");
+       WiFi.disconnect(true);
+       mySmartConfig();
+       delay(5000);
+       ESP.restart();
+    }
+      //clear the string:
+    inputString = "";
+    stringComplete = false;
+  }
   delay(200);
+  
   
 }
