@@ -4,8 +4,8 @@
    Sketch uses 300,640 bytes (69%) of program storage space. Maximum is 434,160 bytes.
    Global variables use 50,732 bytes (61%) of dynamic memory, leaving 31,336 bytes for local variables. Maximum is 81,920 bytes.
 */
-#define STATION 1
-//#define SOFTAP 1
+//#define STATION 1
+#define SOFTAP 1
 
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>
@@ -19,7 +19,7 @@
 #include <Ticker.h>
 #endif
 
-#if defined(STATION)
+#if defined(SOFTAP)
 #include "./DNSServer.h"                  // Patched lib
 // Capture DNS requests on port 53
 IPAddress         apIP(10, 10, 10, 1);    // Private network for server
@@ -53,11 +53,12 @@ int gpioPin[] = { 16,5,4,14,12,13,0,2 };
 int bankPin[] = {15,15,15,15,15,15,15,15 }; // Relay bank enable pin
 const int sensorPin = A0;
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
-const String sapString = "Battery Charger";
+const char sapString[] = "Battery Charger";
+
 #elif defined(ESP32)
 int gpioPin[] = { 26,25,17,16,27,14,12,13 };
 int bankPin[] = {5,5,5,5,5,5,5,5 }; // Relay bank enable pin
-const String sapString = "Battery ChargerE32";
+const char sapString[] = "Battery ChargerE32";
 const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
 #endif
@@ -148,7 +149,8 @@ table, th, td {\
     batString = batString + "</TABLE>";
     if (allCharged)
       batString = batString + "<H3>All Charged, delaying next charge cycle until needed, scan in " + (60 -(runMinutes % 60)) +" minutes<h3>" ;
-    String responseHTML = headerHTML + bodyHTML + batString + footerHTML;
+    String responseHTML = "";
+    responseHTML = headerHTML + bodyHTML + batString + footerHTML;
     webServer.send(200, "text/html", responseHTML);
 }
 
