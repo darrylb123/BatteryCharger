@@ -58,7 +58,7 @@ const char sapString[] = "Battery Charger";
 #elif defined(ESP32)
 int gpioPin[] = { 26,25,17,16,27,14,12,13 };
 int bankPin[] = {5,5,5,5,5,5,5,5 }; // Relay bank enable pin
-const char sapString[] = "Battery ChargerE32test";
+const char sapString[] = "Battery ChargerE32";
 const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
 #endif
@@ -120,7 +120,7 @@ void handlePage (){
                       <style>\
                       table {\
   border-collapse: collapse;\
-  width: 60%;\
+  width: 100%;\
   font-size: 50px;\
 }\
 \
@@ -132,16 +132,18 @@ table, th, td {\
   
   sprintf(tempstr,"<H3>Time since boot %d minutes %d hours %d days</H3>\n",runMinutes,runHours,runDays);
   strcat(responseHTML,tempstr);
-  int minutes = CHARGEMINUTES[(int)batVolts[currentCharger]] - ( runMinutes - lastMinutes ) ; // Calculate charging time on this battery
+  
   strcat(responseHTML,"<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH><TH>Flags</TH>\n");
-  int j;
+
+  int minutes = CHARGEMINUTES[(int)batVolts[currentCharger]] - ( runMinutes - lastMinutes ) ; // Calculate charging time on this battery
   for (int i = 0; i <RELAYS; i++){
+    
     if ( i == currentCharger && !allCharged) {
       sprintf(tempstr,"<TR><TD style=\"background-color:Tomato;\"> %d </TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d %d </TD><TR>\n",
           i+1,batVolts[i],CHARGEMINUTES[(int)batVolts[i]],minutes,batteryCharged[i],batteryConnected[i]);
     } else {
-      sprintf(tempstr,"<TR><TD> %d </TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d %d </TD><TR>\n",
-          i+1, batVolts[i],CHARGEMINUTES[(int)batVolts[i]],minutes,batteryCharged[i],batteryConnected[i]);
+      sprintf(tempstr,"<TR><TD> %d </TD><TD> %5.2f </TD> <TD> %d  </TD><TD> %d %d </TD><TR>\n",
+          i+1, batVolts[i],CHARGEMINUTES[(int)batVolts[i]],batteryCharged[i],batteryConnected[i]);
     }
     strcat(responseHTML,tempstr);
   }
