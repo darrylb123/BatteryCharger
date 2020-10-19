@@ -280,13 +280,14 @@ void loop() {
   if ((!allCharged && runMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))||( runMinutes < lastMinutes)) {
     lastMinutes = runMinutes;
     lastDay = runDays;
-    if (currentCharger < RELAYS ) {
-      pickBattery(currentCharger);
-      currentCharger++;
-    } else {
+    
+    if (currentCharger >= RELAYS ){
       currentCharger = 0;
       pickBattery(-1);
-    }     
+    } else {
+      pickBattery(currentCharger);
+      currentCharger++;  
+    }
     //currentCharger++;
       
   }
