@@ -6,7 +6,7 @@
 */
 //#define STATION 1
 #define SOFTAP 1
-
+#include <stdio.h>
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
@@ -58,7 +58,7 @@ const char sapString[] = "Battery Charger";
 #elif defined(ESP32)
 int gpioPin[] = { 26,25,17,16,27,14,12,13 };
 int bankPin[] = {5,5,5,5,5,5,5,5 }; // Relay bank enable pin
-const char sapString[] = "Battery ChargerE32";
+const char sapString[] = "Battery ChargerE32test";
 const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
 #endif
@@ -74,7 +74,7 @@ int lastMinutes,lastHour,lastDay;
 int runMinutes = 0; 
 int runHours = 0;
 int runDays = 0;
-
+char *responseHTML;
 
 void logbat (){
   int t = analogRead(sensorPin);
@@ -113,8 +113,9 @@ void serialEvent() {
 
 // Web Server page handler
 void handlePage (){
+  char tempstr[200];
 
-  String headerHTML =   "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"10\">\
+  strcpy(responseHTML,"<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"10\">\
                       <title>Battery Charger</title></head><body>\
                       <style>\
                       table {\
@@ -126,32 +127,34 @@ void handlePage (){
 table, th, td {\
   border: 1px solid black;\
 }\
-</style>";
-
-    String bodyHTML =  "<H1> Battery Charger </H1>";
-    String timeSinceBoot = "Time since boot ";
-    timeSinceBoot = timeSinceBoot + " " + runMinutes + " minutes " + runHours + " hours " + runDays + " days<BR>";
-    bodyHTML = bodyHTML + timeSinceBoot;
-    // bodyHTML = bodyHTML + CHARGEMINUTES[(int)batVolts[currentCharger]] + " minutes/battery </H1>";
-
-    String footerHTML =   "</body></html>";
-    
-    int minutes = CHARGEMINUTES[(int)batVolts[currentCharger]] - ( runMinutes - lastMinutes ) ; // Calculate charging time on this battery
-    String batString = "<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH><TH>Flags</TH>\n";
-   
-    int j;
-    for (int i = 0; i <RELAYS; i++){
-      j=i+1;
-      if ( i == currentCharger && !allCharged)
-        batString = batString + "<TR><TD style=\"background-color:Tomato;\">" + j + "</TD><TD>"+ String(batVolts[i], 2) + "<TD>" + CHARGEMINUTES[(int)batVolts[i]] + " (" + minutes +  ")</TD><TD>"+ batteryCharged[i] + batteryConnected[i] + "</TR>\n";
-      else batString = batString + "<TR><TD>" + j + "</TD><TD>"+ String(batVolts[i], 2)+ " </TD><TD>"+ CHARGEMINUTES[(int)batVolts[i]] + "</TD><TD>"+ batteryCharged[i] + batteryConnected[i] + "</TR>\n";
+</style>\
+<H1> Battery Charger </H1>");
+  
+  sprintf(tempstr,"<H3>Time since boot %d minutes %d hours %d days</H3>\n",runMinutes,runHours,runDays);
+  strcat(responseHTML,tempstr);
+  int minutes = CHARGEMINUTES[(int)batVolts[currentCharger]] - ( runMinutes - lastMinutes ) ; // Calculate charging time on this battery
+  strcat(responseHTML,"<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH><TH>Flags</TH>\n");
+  int j;
+  for (int i = 0; i <RELAYS; i++){
+    if ( i == currentCharger && !allCharged) {
+      sprintf(tempstr,"<TR><TD style=\"background-color:Tomato;\"> %d </TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d %d </TD><TR>\n",
+          i+1,batVolts[i],CHARGEMINUTES[(int)batVolts[i]],minutes,batteryCharged[i],batteryConnected[i]);
+    } else {
+      sprintf(tempstr,"<TR><TD> %d </TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d %d </TD><TR>\n",
+          i+1, batVolts[i],CHARGEMINUTES[(int)batVolts[i]],minutes,batteryCharged[i],batteryConnected[i]);
     }
-    batString = batString + "</TABLE>";
-    if (allCharged)
-      batString = batString + "<H3>All Charged, delaying next charge cycle until needed, scan in " + (60 -(runMinutes % 60)) +" minutes<h3>" ;
-    String responseHTML = "";
-    responseHTML = headerHTML + bodyHTML + batString + footerHTML;
-    webServer.send(200, "text/html", responseHTML);
+    strcat(responseHTML,tempstr);
+  }
+  strcat(responseHTML,"</TABLE>");
+  if (allCharged) {
+    sprintf(tempstr,"<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n",(60 -(runMinutes % 60)));
+    strcat(responseHTML,tempstr);
+  }
+  strcat(responseHTML,"</body></html>\n");
+  
+    
+  webServer.send(200, "text/html", responseHTML);
+  // Serial.print(responseHTML);
 }
 
 // Configure wifi using ESP Smartconfig app on phone
@@ -179,6 +182,7 @@ int mySmartConfig() {
 void setup() {
   Serial.begin(115200);
   logger.attach(60,logbat);
+  responseHTML = (char *)malloc(10000);
 #if defined(SOFTAP)
   WiFi.mode(WIFI_AP);
   delay(2000);
