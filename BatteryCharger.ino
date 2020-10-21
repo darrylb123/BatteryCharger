@@ -53,16 +53,16 @@ int gpioPin[] = { 16, 5, 4, 14, 12, 13, 0, 2 };
 int bankPin[] = {15, 15, 15, 15, 15, 15, 15, 15 }; // Relay bank enable pin
 const int sensorPin = A0;
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
-const char sapString[] = "Battery Charger";
+//const char sapString[] = "Battery Charger";
 
 #elif defined(ESP32)
 int gpioPin[] = { 26, 25, 17, 16, 27, 14, 12, 13 };
 int bankPin[] = {5, 5, 5, 5, 5, 5, 5, 5 }; // Relay bank enable pin
-const char sapString[] = "Battery ChargerE32";
+//const char sapString[] = "Battery ChargerE32";
 const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
 #endif
-
+char sapString[30]; // SSID and mqtt name unique by reading chip ID
 float batVolts[RELAYS];
 int batteryCharged[RELAYS];
 int batteryConnected[RELAYS];
@@ -186,6 +186,10 @@ void setup() {
   Serial.begin(115200);
   logger.attach(60, logbat);
   responseHTML = (char *)malloc(10000);
+  uint64_t chipid = ESP.getEfuseMac(); // The chip ID is essentially its MAC address(length: 6 bytes).
+  uint16_t chip = (uint16_t)(chipid >> 32);
+  snprintf(sapString, 20, "BatteryCharger-%04X", chip); 
+  
 #if defined(SOFTAP)
   WiFi.mode(WIFI_AP);
   delay(2000);
