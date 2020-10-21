@@ -31,7 +31,7 @@ const int RELAYS = 8;
 // Volts                     0, 1,  2,  3,  4,  5,  6,  7,  8,    9,    10,   11,   12, 13, 14, 15, 16
 const int CHARGEMINUTES[] = {1, 1,  1,  1,  1,  30, 30, 30, 240,  240,  240,  100,  30, 5,  1,  1,  1};
 const float fullyCharged = 11.9;
-const byte        DNS_PORT = 53; 
+const byte        DNS_PORT = 53;
 String inputString;
 int stringComplete;
 
@@ -44,20 +44,20 @@ ESP8266WebServer  webServer(80);          // HTTP server
 
 
 #elif defined(ESP32)
-WebServer  webServer(80); 
+WebServer  webServer(80);
 #endif
 
 // Wemos pin definitions Batteries 1 - 8
 #if defined(ESP8266)
-int gpioPin[] = { 16,5,4,14,12,13,0,2 };
-int bankPin[] = {15,15,15,15,15,15,15,15 }; // Relay bank enable pin
+int gpioPin[] = { 16, 5, 4, 14, 12, 13, 0, 2 };
+int bankPin[] = {15, 15, 15, 15, 15, 15, 15, 15 }; // Relay bank enable pin
 const int sensorPin = A0;
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
 const char sapString[] = "Battery Charger";
 
 #elif defined(ESP32)
-int gpioPin[] = { 26,25,17,16,27,14,12,13 };
-int bankPin[] = {5,5,5,5,5,5,5,5 }; // Relay bank enable pin
+int gpioPin[] = { 26, 25, 17, 16, 27, 14, 12, 13 };
+int bankPin[] = {5, 5, 5, 5, 5, 5, 5, 5 }; // Relay bank enable pin
 const char sapString[] = "Battery ChargerE32";
 const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
@@ -67,23 +67,23 @@ float batVolts[RELAYS];
 int batteryCharged[RELAYS];
 int batteryConnected[RELAYS];
 int allCharged = 0;
-int currentCharger = 0 ;                   
+int currentCharger = 0 ;
 int sensorValue = 0;
 int firstBoot = 1;
-int lastMinutes,lastHour,lastDay;
-int runMinutes = 0; 
+int lastMinutes, lastHour, lastDay;
+int runMinutes = 0;
 int runHours = 0;
 int runDays = 0;
 char *responseHTML;
 
-void logbat (){
+void logbat () {
   int t = analogRead(sensorPin);
   String bat = "Selected battery ";
   runMinutes++;
-  if ( ! (runMinutes % 60) ){
+  if ( ! (runMinutes % 60) ) {
     runHours++;
-  } 
-  if ( ! (runMinutes % 1440) ){
+  }
+  if ( ! (runMinutes % 1440) ) {
     runDays++;
   }
   String theTime = "Run Time: ";
@@ -93,13 +93,13 @@ void logbat (){
   Serial.println(bat);
 }
 //Read a string from USB
-void serialEvent() { 
+void serialEvent() {
   while (Serial.available()) {
     // get the new byte:
     char inChar = (char)Serial.read();
     // add it to the inputString:
     //Serial.print(inChar);
-    
+
     // if the incoming character is a newline, set a flag
     // so the main loop can do something about it:
     if (inChar == '\n') {
@@ -112,10 +112,10 @@ void serialEvent() {
 }
 
 // Web Server page handler
-void handlePage (){
+void handlePage () {
   char tempstr[200];
 
-  strcpy(responseHTML,"<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"10\">\
+  strcpy(responseHTML, "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"10\">\
                       <title>Battery Charger</title></head><body>\
                       <style>\
                       table {\
@@ -129,61 +129,62 @@ table, th, td {\
 }\
 </style>\
 <H1> Battery Charger </H1>");
-  
-  sprintf(tempstr,"<H3>Time since boot %d minutes %d hours %d days</H3>\n",runMinutes,runHours,runDays);
-  strcat(responseHTML,tempstr);
-  
-  strcat(responseHTML,"<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH><TH>Flags</TH>\n");
+
+  sprintf(tempstr, "<H3>Time since boot %d minutes %d hours %d days</H3>\n", runMinutes, runHours, runDays);
+  strcat(responseHTML, tempstr);
+
+  strcat(responseHTML, "<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH><TH>Flags</TH>\n");
 
   int minutes = CHARGEMINUTES[(int)batVolts[currentCharger]] - ( runMinutes - lastMinutes ) ; // Calculate charging time on this battery
-  for (int i = 0; i <RELAYS; i++){
-    
+  for (int i = 0; i < RELAYS; i++) {
+
     if ( i == currentCharger && !allCharged) {
-      sprintf(tempstr,"<TR><TD style=\"background-color:Tomato;\"> %d </TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d %d </TD><TR>\n",
-          i+1,batVolts[i],CHARGEMINUTES[(int)batVolts[i]],minutes,batteryCharged[i],batteryConnected[i]);
+      sprintf(tempstr, "<TR><TD style=\"background-color:Tomato;\"> %d </TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d %d </TD><TR>\n",
+              i + 1, batVolts[i], CHARGEMINUTES[(int)batVolts[i]], minutes, batteryCharged[i], batteryConnected[i]);
     } else {
-      sprintf(tempstr,"<TR><TD> %d </TD><TD> %5.2f </TD> <TD> %d  </TD><TD> %d %d </TD><TR>\n",
-          i+1, batVolts[i],CHARGEMINUTES[(int)batVolts[i]],batteryCharged[i],batteryConnected[i]);
+      sprintf(tempstr, "<TR><TD> %d </TD><TD> %5.2f </TD> <TD> %d  </TD><TD> %d %d </TD><TR>\n",
+              i + 1, batVolts[i], CHARGEMINUTES[(int)batVolts[i]], batteryCharged[i], batteryConnected[i]);
     }
-    strcat(responseHTML,tempstr);
+    strcat(responseHTML, tempstr);
   }
-  strcat(responseHTML,"</TABLE>");
+  strcat(responseHTML, "</TABLE>");
   if (allCharged) {
-    sprintf(tempstr,"<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n",(60 -(runMinutes % 60)));
-    strcat(responseHTML,tempstr);
+    sprintf(tempstr, "<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n", (60 - (runMinutes % 60)));
+    strcat(responseHTML, tempstr);
   }
-  strcat(responseHTML,"</body></html>\n");
+  strcat(responseHTML, "</body></html>\n");
   
-    
+  Serial.print(responseHTML);
+  delay(100);// Serial.print(responseHTML);
   webServer.send(200, "text/html", responseHTML);
-  // Serial.print(responseHTML);
+
 }
 
 // Configure wifi using ESP Smartconfig app on phone
 int mySmartConfig() {
-      WiFi.beginSmartConfig();
+  WiFi.beginSmartConfig();
 
-    //Wait for SmartConfig packet from mobile
-    Serial.println("Waiting for SmartConfig.");
-    while (!WiFi.smartConfigDone()) {
-      delay(500);
-      Serial.print(".");
-    }
+  //Wait for SmartConfig packet from mobile
+  Serial.println("Waiting for SmartConfig.");
+  while (!WiFi.smartConfigDone()) {
+    delay(500);
+    Serial.print(".");
+  }
 
-    Serial.println("");
-    Serial.println("SmartConfig received.");
+  Serial.println("");
+  Serial.println("SmartConfig received.");
 
-    //Wait for WiFi to connect to AP
-    Serial.println("Waiting for WiFi");
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.print(".");
-    }
+  //Wait for WiFi to connect to AP
+  Serial.println("Waiting for WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
 }
 
 void setup() {
   Serial.begin(115200);
-  logger.attach(60,logbat);
+  logger.attach(60, logbat);
   responseHTML = (char *)malloc(10000);
 #if defined(SOFTAP)
   WiFi.mode(WIFI_AP);
@@ -195,7 +196,7 @@ void setup() {
   dnsServer.start(DNS_PORT, "*", apIP);
 #elif defined(STATION)
   WiFi.mode(WIFI_STA);
-    WiFi.begin();
+  WiFi.begin();
   delay(5000);
   if (WiFi.status() != WL_CONNECTED) {
     mySmartConfig();
@@ -205,66 +206,66 @@ void setup() {
 
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
- 
+
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
   delay(500);
 #endif
-  webServer.on("/",handlePage);
+  webServer.on("/", handlePage);
   webServer.onNotFound(handlePage);
   webServer.begin();
-  
-  for(int i = 0; i < RELAYS; i++) {
+
+  for (int i = 0; i < RELAYS; i++) {
     pinMode(gpioPin[i], OUTPUT);
     pinMode(bankPin[i], OUTPUT);
     digitalWrite(gpioPin[i], HIGH);
     digitalWrite(bankPin[i], LOW); // The bank pin supplies 3.3V for the optocouplers supply. LOW disables the particular bank
   }
-  pinMode(15,OUTPUT);
-  digitalWrite(15,HIGH);
-  pickBattery(-1);
+  pinMode(15, OUTPUT);
+  digitalWrite(15, HIGH);
+  pickBattery(RELAYS);
   pickBattery(0);
   currentCharger = 0;
   lastMinutes = runMinutes;
-  lastDay =runDays;
+  lastDay = runDays;
 }
 
 // Change the relays, either to the next relay or scan all for voltages
 int pickBattery(int num) {
-  for(int i = 0; i < RELAYS; i++) {
-     digitalWrite(gpioPin[i], HIGH);
+  for (int i = 0; i < RELAYS; i++) {
+    digitalWrite(gpioPin[i], HIGH);
   }
-  if(num >= 0 && !allCharged) { //
+  if (num < RELAYS && !allCharged) { // if the number is the same as NUMBER OF RELAYS then check all
     digitalWrite(gpioPin[num], LOW);
     digitalWrite(bankPin[num], HIGH);
   } else { // scan all the batteries for voltage
     allCharged = 1;
-    for(int i = 0; i < RELAYS; i++){
+    for (int i = 0; i < RELAYS; i++) {
       digitalWrite(gpioPin[i], LOW);
       digitalWrite(bankPin[num], HIGH);
       delay(100);
       batVolts[i] = analogRead(sensorPin) * CALIBRATION;
-      if (batVolts[i] > fullyCharged) 
-        batteryCharged[i] =1;
+      if (batVolts[i] > fullyCharged)
+        batteryCharged[i] = 1;
       else
-        batteryCharged[i] =0;
+        batteryCharged[i] = 0;
       if (batVolts[i] > 4.0)
-        batteryConnected[i] =1;
+        batteryConnected[i] = 1;
       else
         batteryConnected[i] = 0;
       if (batteryConnected[i] && !batteryCharged[i]) {
-          allCharged = 0;
-          lastDay = runDays;
+        allCharged = 0;
+        lastDay = runDays;
       } else {
-        lastDay = runDays +1;
+        lastDay = runDays + 1;
       }
-        
+
       Serial.print(" ");
       Serial.print(batVolts[i]);
       digitalWrite(gpioPin[i], HIGH);
     }
     Serial.println(" ");
-    
+
   }
 }
 
@@ -273,27 +274,24 @@ void loop() {
 #if defined(SOFTAP)
   dnsServer.processNextRequest();
 #endif
-  webServer.handleClient(); 
-  if(!allCharged) batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION; //If no battery is selected the analog on battery1 is erronious
+  webServer.handleClient();
+  if (!allCharged && currentCharger < RELAYS) batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION; //If no battery is selected the analog on battery1 is erronious
   // See if we have rolled over, delayed enough or current battery has < 1.2V
   // if all batteries are charged, pickBattery will set the lastDay 1 in front so that it waits until then to attempt charging again
-  if ((!allCharged && runMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]]))||( runMinutes < lastMinutes)) {
+  if ((!allCharged && runMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]])) || ( runMinutes < lastMinutes)) {
     lastMinutes = runMinutes;
     lastDay = runDays;
-    
-    if (currentCharger >= RELAYS ){
-      currentCharger = 0;
-      pickBattery(-1);
-    } else {
-      pickBattery(currentCharger);
-      currentCharger++;  
+    currentCharger++;
+
+    if (currentCharger > RELAYS ) {
+      currentCharger = 0; 
     }
-    //currentCharger++;
-      
+    pickBattery(currentCharger);
+
   }
   // Read the battery voltage each hour if fully charged
-  if ((runHours >lastHour) && allCharged){
-    pickBattery(-1);
+  if ((runHours > lastHour) && allCharged) {
+    pickBattery(RELAYS);
     lastHour = runHours;
   }
   //Serial.println(responseHTML);
@@ -302,18 +300,18 @@ void loop() {
   serialEvent();
   if (stringComplete) {
     Serial.println(inputString);
-    if (inputString.substring(0)=="reset") {
-       Serial.println("Resetting Wifi Configuration");
-       WiFi.disconnect(true);
-       mySmartConfig();
-       delay(5000);
-       ESP.restart();
+    if (inputString.substring(0) == "reset") {
+      Serial.println("Resetting Wifi Configuration");
+      WiFi.disconnect(true);
+      mySmartConfig();
+      delay(5000);
+      ESP.restart();
     }
-      //clear the string:
+    //clear the string:
     inputString = "";
     stringComplete = false;
   }
   delay(200);
-  
-  
+
+
 }
