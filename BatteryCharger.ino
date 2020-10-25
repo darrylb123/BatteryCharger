@@ -186,8 +186,9 @@ void setup() {
   Serial.begin(115200);
   logger.attach(60, logbat);
   responseHTML = (char *)malloc(10000);
-  uint64_t chipid = ESP.getEfuseMac(); // The chip ID is essentially its MAC address(length: 6 bytes).
-  uint16_t chip = (uint16_t)(chipid >> 32);
+  // uint64_t chipid = ESP.getEfuseMac(); // The chip ID is essentially its MAC address(length: 6 bytes).
+  //uint16_t chip = (uint16_t)(chipid >> 32);
+  uint16_t chip = 123;
   snprintf(sapString, 20, "BatteryCharger-%04X", chip); 
   
 #if defined(SOFTAP)
@@ -287,7 +288,7 @@ void loop() {
     lastDay = runDays;
     currentCharger++;
 
-    if (currentCharger > RELAYS ) {
+    if (currentCharger >= RELAYS ) {
       currentCharger = 0; 
     }
     pickBattery(currentCharger);
