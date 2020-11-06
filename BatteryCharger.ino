@@ -186,11 +186,13 @@ void setup() {
   Serial.begin(115200);
   logger.attach(60, logbat);
   responseHTML = (char *)malloc(10000);
-  // uint64_t chipid = ESP.getEfuseMac(); // The chip ID is essentially its MAC address(length: 6 bytes).
-  //uint16_t chip = (uint16_t)(chipid >> 32);
-  uint16_t chip = 123;
+#if defined(ESP32)
+  uint64_t chipid = ESP.getEfuseMac(); // The chip ID is essentially its MAC address(length: 6 bytes).
+  uint16_t chip = (uint16_t)(chipid >> 32);
   snprintf(sapString, 20, "BatteryCharger-%04X", chip); 
-  
+#elif defined(ESP8266)
+  snprintf(sapString, 20, "BatteryCharger-%08X", ESP.getChipId());
+#endif
 #if defined(SOFTAP)
   WiFi.mode(WIFI_AP);
   delay(2000);
