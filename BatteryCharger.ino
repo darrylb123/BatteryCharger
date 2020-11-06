@@ -1,11 +1,11 @@
-/*
-   Captive Portal by: M. Ray Burnette 20150831
+/*   Captive Portal by: M. Ray Burnette 20150831
    See Notes tab for original code references and compile requirements
    Sketch uses 300,640 bytes (69%) of program storage space. Maximum is 434,160 bytes.
    Global variables use 50,732 bytes (61%) of dynamic memory, leaving 31,336 bytes for local variables. Maximum is 81,920 bytes.
 */
 //#define STATION 1
 #define SOFTAP 1
+#define DEBUG 0
 #include <stdio.h>
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>
@@ -20,7 +20,7 @@
 #endif
 
 #if defined(SOFTAP)
-#include "./DNSServer.h"                  // Patched lib
+#include "DNSServer.h"                  // Patched lib
 // Capture DNS requests on port 53
 IPAddress         apIP(10, 10, 10, 1);    // Private network for server
 DNSServer         dnsServer;              // Create the DNS object
@@ -90,6 +90,8 @@ void logbat () {
   theTime = theTime + " " + runMinutes + " minutes " + runHours + " hours " + runDays + " days ";
   int num = currentCharger ;
   bat = theTime + " " + bat + num + " " + t + " " + String(t * CALIBRATION, 2);
+  if (allCharged)
+    bat = bat + " All Charged";
   Serial.println(bat);
 }
 //Read a string from USB
@@ -153,8 +155,8 @@ table, th, td {\
     strcat(responseHTML, tempstr);
   }
   strcat(responseHTML, "</body></html>\n");
-  
-  Serial.print(responseHTML);
+  if (DEBUG)
+    Serial.print(responseHTML);
   delay(100);// Serial.print(responseHTML);
   webServer.send(200, "text/html", responseHTML);
 
@@ -231,10 +233,11 @@ void setup() {
   pinMode(15, OUTPUT);
   digitalWrite(15, HIGH);
   pickBattery(RELAYS);
-  pickBattery(0);
   currentCharger = 0;
   lastMinutes = runMinutes;
   lastDay = runDays;
+  firstBoot = 1;
+  delay(1000);
 }
 
 // Change the relays, either to the next relay or scan all for voltages
@@ -247,9 +250,10 @@ int pickBattery(int num) {
     digitalWrite(bankPin[num], HIGH);
   } else { // scan all the batteries for voltage
     allCharged = 1;
+    Serial.println("Scanning");
     for (int i = 0; i < RELAYS; i++) {
+      digitalWrite(bankPin[i], HIGH);
       digitalWrite(gpioPin[i], LOW);
-      digitalWrite(bankPin[num], HIGH);
       delay(100);
       batVolts[i] = analogRead(sensorPin) * CALIBRATION;
       if (batVolts[i] > fullyCharged)
@@ -288,7 +292,9 @@ void loop() {
   if ((!allCharged && runMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]])) || ( runMinutes < lastMinutes)) {
     lastMinutes = runMinutes;
     lastDay = runDays;
-    currentCharger++;
+    if (!firstBoot) {
+      currentCharger++;
+    }
 
     if (currentCharger >= RELAYS ) {
       currentCharger = 0; 
