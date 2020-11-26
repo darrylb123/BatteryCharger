@@ -1,8 +1,4 @@
-/*   Captive Portal by: M. Ray Burnette 20150831
-   See Notes tab for original code references and compile requirements
-   Sketch uses 300,640 bytes (69%) of program storage space. Maximum is 434,160 bytes.
-   Global variables use 50,732 bytes (61%) of dynamic memory, leaving 31,336 bytes for local variables. Maximum is 81,920 bytes.
-*/
+/* Battery Charger Multiplexer using ESP8266 or ESP32*/
 //#define STATION 1
 #define SOFTAP 1
 #define DEBUG 0
@@ -29,7 +25,7 @@ DNSServer         dnsServer;              // Create the DNS object
 const int RELAYS = 8;
 // An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
 // Volts                     0, 1,  2,  3,  4,  5,  6,  7,  8,    9,    10,   11,   12, 13, 14, 15, 16
-const int CHARGEMINUTES[] = {1, 1,  1,  1,  1,  30, 30, 30, 240,  240,  240,  100,  30, 5,  1,  1,  1};
+const int CHARGEMINUTES[] = {1, 1,  1,  1,  1,  30, 30, 30, 240,  240,  240,  100,  30, 1,  1,  1,  1};
 const float fullyCharged = 11.9;
 const byte        DNS_PORT = 53;
 String inputString;
@@ -244,6 +240,7 @@ void setup() {
 int pickBattery(int num) {
   for (int i = 0; i < RELAYS; i++) {
     digitalWrite(gpioPin[i], HIGH);
+    digitalWrite(bankPin[i], HIGH);
   }
   if (num < RELAYS && !allCharged) { // if the number is the same as NUMBER OF RELAYS then check all
     digitalWrite(gpioPin[num], LOW);
@@ -292,12 +289,15 @@ void loop() {
   if ((!allCharged && runMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]])) || ( runMinutes < lastMinutes)) {
     lastMinutes = runMinutes;
     lastDay = runDays;
-    if (!firstBoot) {
+    if (firstBoot) {
+      firstBoot = 0;
+    } else {
       currentCharger++;
     }
 
     if (currentCharger >= RELAYS ) {
       currentCharger = 0; 
+      pickBattery(RELAYS);
     }
     pickBattery(currentCharger);
 
