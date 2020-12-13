@@ -22,7 +22,7 @@ IPAddress         apIP(10, 10, 10, 1);    // Private network for server
 DNSServer         dnsServer;              // Create the DNS object
 
 #endif
-const int RELAYS = 8;
+
 // An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
 // Volts                     0, 1,  2,  3,  4,  5,  6,  7,  8,    9,    10,   11,   12, 13, 14, 15, 16
 const int CHARGEMINUTES[] = {1, 1,  1,  1,  1,  30, 30, 30, 240,  240,  240,  100,  30, 1,  1,  1,  1};
@@ -45,19 +45,22 @@ WebServer  webServer(80);
 
 // Wemos pin definitions Batteries 1 - 8
 #if defined(ESP8266)
-int gpioPin[] = { 16, 5, 4, 14, 12, 13, 0, 2 };
+const int RELAYS = 8; //Wemos D1R2 only supports 8 relays 
+int gpioPin[] = { 16, 5, 4, 14, 12, 13, 0, 2 }                                                                                                                                                                                                                                                                                                                                                                                                                                                };
 int bankPin[] = {15, 15, 15, 15, 15, 15, 15, 15 }; // Relay bank enable pin
 const int sensorPin = A0;
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
 //const char sapString[] = "Battery Charger";
 
 #elif defined(ESP32)
-int gpioPin[] = { 26, 25, 17, 16, 27, 14, 12, 13 };
-int bankPin[] = {5, 5, 5, 5, 5, 5, 5, 5 }; // Relay bank enable pin
+const int RELAYS = 16; //Wemos R32 supports 16 relays
+int gpioPin[] = { 26, 25, 17, 16, 27, 14, 12, 13, 26, 25, 17, 16, 27, 14, 12, 13 };
+int bankPin[] = {5, 5, 5, 5, 5, 5, 5, 5, 23, 23, 23, 23, 23, 23, 23, 23 }; // Relay bank enable pin
 //const char sapString[] = "Battery ChargerE32";
 const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
 #endif
+
 char sapString[30]; // SSID and mqtt name unique by reading chip ID
 float batVolts[RELAYS];
 int batteryCharged[RELAYS];
@@ -240,7 +243,7 @@ void setup() {
 int pickBattery(int num) {
   for (int i = 0; i < RELAYS; i++) {
     digitalWrite(gpioPin[i], HIGH);
-    digitalWrite(bankPin[i], HIGH);
+    digitalWrite(bankPin[i], LOW);
   }
   if (num < RELAYS && !allCharged) { // if the number is the same as NUMBER OF RELAYS then check all
     digitalWrite(gpioPin[num], LOW);
@@ -271,6 +274,7 @@ int pickBattery(int num) {
       Serial.print(" ");
       Serial.print(batVolts[i]);
       digitalWrite(gpioPin[i], HIGH);
+      digitalWrite(bankPin[i], LOW);
     }
     Serial.println(" ");
 
