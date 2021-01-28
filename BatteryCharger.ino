@@ -43,20 +43,20 @@ ESP8266WebServer  webServer(80);          // HTTP server
 WebServer  webServer(80);
 #endif
 
-// Wemos pin definitions Batteries 1 - 8
+// Wemos D1R2 only supports 8 relays 
+// Wemos R32 supports 16 relays
 #if defined(ESP8266)
-const int RELAYS = 8; //Wemos D1R2 only supports 8 relays 
-int gpioPin[] = { 16, 5, 4, 14, 12, 13, 0, 2 }                                                                                                                                                                                                                                                                                                                                                                                                                                                };
-int bankPin[] = {15, 15, 15, 15, 15, 15, 15, 15 }; // Relay bank enable pin
+const int RELAYS = 8;
+const int gpioPin[] = { 16, 5, 4, 0, 2, 14, 12, 13 };
+const int bankPin[] = { 15, 15, 15, 15, 15, 15, 15, 15 }; // Relay bank enable pin
 const int sensorPin = A0;
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
-//const char sapString[] = "Battery Charger";
+
 
 #elif defined(ESP32)
-const int RELAYS = 16; //Wemos R32 supports 16 relays
-int gpioPin[] = { 26, 25, 17, 16, 27, 14, 12, 13, 26, 25, 17, 16, 27, 14, 12, 13 };
-int bankPin[] = {5, 5, 5, 5, 5, 5, 5, 5, 23, 23, 23, 23, 23, 23, 23, 23 }; // Relay bank enable pin
-//const char sapString[] = "Battery ChargerE32";
+const int RELAYS = 16; 
+const int gpioPin[] = { 26, 25, 17, 16, 27, 14, 12, 13, 26, 25, 17, 16, 27, 14, 12, 13 };
+const int bankPin[] = {5, 5, 5, 5, 5, 5, 5, 5, 23, 23, 23, 23, 23, 23, 23, 23 }; // Relay bank enable pin
 const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
 #endif
