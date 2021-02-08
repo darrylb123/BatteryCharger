@@ -61,6 +61,7 @@ const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/0
 const int sensorPin = 34;
 #endif
 
+const int SCAN = 1000; // Delay in ms between each battery when scanning 
 char sapString[30]; // SSID and mqtt name unique by reading chip ID
 float batVolts[RELAYS];
 int batteryCharged[RELAYS];
@@ -203,7 +204,9 @@ void setup() {
   // provided IP to all DNS request
   dnsServer.start(DNS_PORT, "*", apIP);
 #elif defined(STATION)
+  
   WiFi.mode(WIFI_STA);
+  WiFi.setHostname(sapString); // this sets a unique hostname for DHCP
   WiFi.begin();
   delay(5000);
   if (WiFi.status() != WL_CONNECTED) {
@@ -254,7 +257,7 @@ int pickBattery(int num) {
     for (int i = 0; i < RELAYS; i++) {
       digitalWrite(bankPin[i], HIGH);
       digitalWrite(gpioPin[i], LOW);
-      delay(100);
+      delay(SCAN);
       batVolts[i] = analogRead(sensorPin) * CALIBRATION;
       if (batVolts[i] > fullyCharged)
         batteryCharged[i] = 1;
