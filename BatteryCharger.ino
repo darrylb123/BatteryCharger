@@ -214,7 +214,9 @@ void setup() {
   }
 
   Serial.println("WiFi Connected.");
-
+  String hostName = sapString;
+  hostName = hostName + " ";
+  Serial.print(hostName);
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
