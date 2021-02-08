@@ -1,6 +1,6 @@
 /* Battery Charger Multiplexer using ESP8266 or ESP32*/
-//#define STATION 1
-#define SOFTAP 1
+#define STATION 1
+// #define SOFTAP 1
 #define DEBUG 0
 #include <stdio.h>
 #if defined(ESP8266)
