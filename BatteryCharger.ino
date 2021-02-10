@@ -7,6 +7,8 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <Ticker.h>
+#include <FS.h>
+#include <LittleFS.h>
 #elif defined(ESP32)
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -75,6 +77,7 @@ int runMinutes = 0;
 int runHours = 0;
 int runDays = 0;
 char *responseHTML;
+String labelTXT[RELAYS];
 
 void logbat () {
   int t = analogRead(sensorPin);
@@ -115,7 +118,7 @@ void serialEvent() {
 
 // Web Server page handler
 void handlePage () {
-  char tempstr[200];
+  char tempstr[512];
 
   strcpy(responseHTML, "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"10\">\
                       <title>Battery Charger</title></head><body>\
@@ -123,14 +126,15 @@ void handlePage () {
                       table {\
   border-collapse: collapse;\
   width: 100%;\
-  font-size: 50px;\
+  font-size: 30px;\
 }\
 \
 table, th, td {\
   border: 1px solid black;\
 }\
 </style>\
-<H1> Battery Charger </H1>");
+<H1> Battery Charger </H1>\
+<form method=\"post\" enctype=\"application/x-www-form-urlencoded\" action=\"/postform/\">");
 
   sprintf(tempstr, "<H3>Time since boot %d minutes %d hours %d days</H3>\n", runMinutes, runHours, runDays);
   strcat(responseHTML, tempstr);
@@ -144,8 +148,10 @@ table, th, td {\
       sprintf(tempstr, "<TR><TD style=\"background-color:Tomato;\"> %d </TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d %d </TD><TR>\n",
               i + 1, batVolts[i], CHARGEMINUTES[(int)batVolts[i]], minutes, batteryCharged[i], batteryConnected[i]);
     } else {
-      sprintf(tempstr, "<TR><TD> %d </TD><TD> %5.2f </TD> <TD> %d  </TD><TD> %d %d </TD><TR>\n",
-              i + 1, batVolts[i], CHARGEMINUTES[(int)batVolts[i]], batteryCharged[i], batteryConnected[i]);
+      char tmplabel[50];
+      labelTXT[i].toCharArray(tmplabel,sizeof(tmplabel));
+      sprintf(tempstr, "<TR><TD> %d <input type=\"text\" name=\"%d\" value=\"%s\"> </TD><TD> %5.2f </TD> <TD> %d  </TD><TD> %d %d </TD><TR>\n",
+              i + 1, i+1, tmplabel  ,batVolts[i], CHARGEMINUTES[(int)batVolts[i]], batteryCharged[i], batteryConnected[i]);
     }
     strcat(responseHTML, tempstr);
   }
@@ -154,12 +160,27 @@ table, th, td {\
     sprintf(tempstr, "<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n", (60 - (runMinutes % 60)));
     strcat(responseHTML, tempstr);
   }
-  strcat(responseHTML, "</body></html>\n");
+  strcat(responseHTML, "<input type=\"submit\" value=\"Submit\">\
+    </form>\
+    </body></html>\n");
   if (DEBUG)
     Serial.print(responseHTML);
   delay(100);// Serial.print(responseHTML);
   webServer.send(200, "text/html", responseHTML);
 
+}
+
+void handleForm() {
+  if (webServer.method() != HTTP_POST) {
+    webServer.send(405, "text/plain", "Method Not Allowed");
+  } else {
+    String message = "POST form was:\n";
+    for (uint8_t i = 0; i < webServer.args(); i++) {
+      message += " " + webServer.argName(i) + ": " + webServer.arg(i) + "\n";
+    }
+    webServer.send(200, "text/plain", message);
+    Serial.print(message);
+  }
 }
 
 // Configure wifi using ESP Smartconfig app on phone
@@ -206,7 +227,11 @@ void setup() {
 #elif defined(STATION)
   
   WiFi.mode(WIFI_STA);
+  #if defined(ESP32)
   WiFi.setHostname(sapString); // this sets a unique hostname for DHCP
+  #elif defined(ESP8266)
+  WiFi.hostname(sapString); // this sets a unique hostname for DHCP
+  #endif
   WiFi.begin();
   delay(5000);
   if (WiFi.status() != WL_CONNECTED) {
@@ -225,6 +250,9 @@ void setup() {
   delay(500);
 #endif
   webServer.on("/", handlePage);
+  webServer.on("/postform/", handleForm);
+  webServer.on("/rmfiles", rmfiles);
+  webServer.on("/labels", labels);
   webServer.onNotFound(handlePage);
   webServer.begin();
 
@@ -241,8 +269,66 @@ void setup() {
   lastMinutes = runMinutes;
   lastDay = runDays;
   firstBoot = 1;
+  // Initialise the label arrays
+  for ( int i = 0; i < RELAYS; i++ ) {
+    labelTXT[i] = "Label " ;
+    labelTXT[i] = labelTXT[i] + i;
+  }
+  // Create the filesystem 
+  // LittleFS.format();
+  Serial.println("Mount LittleFS");
+  if (!LittleFS.begin()) {
+    Serial.println("LittleFS mount failed");
+    return;
+  }
+  if (LittleFS.exists("/labels.txt")) {
+    //File labels = LittleFS.open("/labels.txt", "r");
+    //for ( int i= 0; i < RELAYS; i++ )
+  } else {
+    writeFile();   
+  }
   delay(1000);
 }
+
+void writeFile() {
+  char path[] = "/labels.txt";
+  Serial.printf("Writing file: %s\n",path);
+
+  File file = LittleFS.open(path, "w");
+  if (!file) {
+    Serial.println("Failed to open file for writing");
+    return;
+  }
+  for ( int i = 0; i < RELAYS; i++ ) {
+    if (!file.println( labelTXT[i] ))
+      Serial.println("Write failed");
+  }
+  file.close();
+}
+void rmfiles(){
+  if (LittleFS.remove("/labels.txt")) {
+    Serial.println("/labels.txt removed");
+  } else {
+    Serial.println("/labels.txt removal failed");
+  }
+}
+
+void labels() {
+  Serial.println("Reading file: /labels.txt");
+
+  File file = LittleFS.open("/labels.txt", "r");
+  if (!file) {
+    Serial.println("Failed to open file for reading");
+    return;
+  }
+
+  Serial.print("Read from file: ");
+  while (file.available()) {
+    Serial.write(file.read());
+  }
+  file.close();
+}
+
 
 // Change the relays, either to the next relay or scan all for voltages
 int pickBattery(int num) {
