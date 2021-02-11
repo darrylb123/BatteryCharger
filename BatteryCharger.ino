@@ -8,6 +8,7 @@
 #include <ESP8266WebServer.h>
 #include <Ticker.h>
 #include <FS.h>
+
 #include <LittleFS.h>
 #elif defined(ESP32)
 #include <WiFi.h>
@@ -15,6 +16,7 @@
 #include <WiFiAP.h>
 #include <WebServer.h>
 #include <Ticker.h>
+#include <LITTLEFS.h>
 #endif
 
 #if defined(SOFTAP)
@@ -39,10 +41,13 @@ Ticker minutes;
 
 #if defined(ESP8266)
 ESP8266WebServer  webServer(80);          // HTTP server
-
+#define MYFS LittleFS
+#define FORMAT_LITTLEFS_IF_FAILED 
 
 #elif defined(ESP32)
 WebServer  webServer(80);
+#define MYFS LITTLEFS
+#define FORMAT_LITTLEFS_IF_FAILED true
 #endif
 
 // Wemos D1R2 only supports 8 relays 
@@ -120,7 +125,7 @@ void serialEvent() {
 void handlePage () {
   char tempstr[512];
 
-  strcpy(responseHTML, "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"10\">\
+  strcpy(responseHTML, "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"20\">\
                       <title>Battery Charger</title></head><body>\
                       <style>\
                       table {\
@@ -143,13 +148,13 @@ table, th, td {\
 
   int minutes = CHARGEMINUTES[(int)batVolts[currentCharger]] - ( runMinutes - lastMinutes ) ; // Calculate charging time on this battery
   for (int i = 0; i < RELAYS; i++) {
-
+    char tmplabel[50];
+    labelTXT[i].toCharArray(tmplabel,sizeof(tmplabel));
     if ( i == currentCharger && !allCharged) {
-      sprintf(tempstr, "<TR><TD style=\"background-color:Tomato;\"> %d </TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d %d </TD><TR>\n",
-              i + 1, batVolts[i], CHARGEMINUTES[(int)batVolts[i]], minutes, batteryCharged[i], batteryConnected[i]);
+      sprintf(tempstr, "<TR><TD style=\"background-color:Tomato;\"> %d <input type=\"text\" name=\"%d\" value=\"%s\"></TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d %d </TD><TR>\n",
+              i + 1,i+1, tmplabel  , batVolts[i], CHARGEMINUTES[(int)batVolts[i]], minutes, batteryCharged[i], batteryConnected[i]);
     } else {
-      char tmplabel[50];
-      labelTXT[i].toCharArray(tmplabel,sizeof(tmplabel));
+      
       sprintf(tempstr, "<TR><TD> %d <input type=\"text\" name=\"%d\" value=\"%s\"> </TD><TD> %5.2f </TD> <TD> %d  </TD><TD> %d %d </TD><TR>\n",
               i + 1, i+1, tmplabel  ,batVolts[i], CHARGEMINUTES[(int)batVolts[i]], batteryCharged[i], batteryConnected[i]);
     }
@@ -170,16 +175,23 @@ table, th, td {\
 
 }
 
+// Function to extract the new label text and update the labels array. The labels are then written to the labels.txt file
 void handleForm() {
   if (webServer.method() != HTTP_POST) {
     webServer.send(405, "text/plain", "Method Not Allowed");
   } else {
     String message = "POST form was:\n";
     for (uint8_t i = 0; i < webServer.args(); i++) {
+      String name = webServer.argName(i);
+      long whichlabel = name.toInt() -1;
+      Serial.println(name + "" + whichlabel);
+      if (whichlabel > -1 && whichlabel < RELAYS)
+        labelTXT[whichlabel] = webServer.arg(i);
       message += " " + webServer.argName(i) + ": " + webServer.arg(i) + "\n";
     }
     webServer.send(200, "text/plain", message);
     Serial.print(message);
+    writeFile();
   }
 }
 
@@ -277,13 +289,26 @@ void setup() {
   // Create the filesystem 
   // LittleFS.format();
   Serial.println("Mount LittleFS");
-  if (!LittleFS.begin()) {
+ // MYFS.format();
+  if (!MYFS.begin(FORMAT_LITTLEFS_IF_FAILED)) {
     Serial.println("LittleFS mount failed");
     return;
   }
-  if (LittleFS.exists("/labels.txt")) {
-    //File labels = LittleFS.open("/labels.txt", "r");
-    //for ( int i= 0; i < RELAYS; i++ )
+
+
+  // Read the labels file and  write to label array
+  // else initialise the labels file 
+  if (MYFS.exists("/labels.txt")) {
+    int lcount = 0;
+    char buffer[50];
+    File labelf = MYFS.open("/labels.txt", "r");
+    while (labelf.available()) {
+      int l = labelf.readBytesUntil('\n', buffer, sizeof(buffer));
+      buffer[l] = 0;
+      labelTXT[lcount++] = buffer;
+      Serial.println(buffer);
+      if(lcount >= RELAYS) break;
+    }
   } else {
     writeFile();   
   }
@@ -294,7 +319,7 @@ void writeFile() {
   char path[] = "/labels.txt";
   Serial.printf("Writing file: %s\n",path);
 
-  File file = LittleFS.open(path, "w");
+  File file = MYFS.open(path, "w");
   if (!file) {
     Serial.println("Failed to open file for writing");
     return;
@@ -306,7 +331,7 @@ void writeFile() {
   file.close();
 }
 void rmfiles(){
-  if (LittleFS.remove("/labels.txt")) {
+  if (MYFS.remove("/labels.txt")) {
     Serial.println("/labels.txt removed");
   } else {
     Serial.println("/labels.txt removal failed");
@@ -316,7 +341,7 @@ void rmfiles(){
 void labels() {
   Serial.println("Reading file: /labels.txt");
 
-  File file = LittleFS.open("/labels.txt", "r");
+  File file = MYFS.open("/labels.txt", "r");
   if (!file) {
     Serial.println("Failed to open file for reading");
     return;
