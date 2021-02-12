@@ -68,7 +68,7 @@ const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/0
 const int sensorPin = 34;
 #endif
 
-const int SCAN = 1000; // Delay in ms between each battery when scanning 
+const int SCAN = 50; // Delay in ms between each battery when scanning 
 char sapString[30]; // SSID and mqtt name unique by reading chip ID
 float batVolts[RELAYS];
 int batteryCharged[RELAYS];
@@ -120,10 +120,53 @@ void serialEvent() {
     }
   }
 }
+// Label form page
+void formPage () {
+  char tempstr[512];
+
+  strcpy(responseHTML, "<!DOCTYPE html><html><head>\
+                      <title>Battery Charger</title></head><body>\
+                      <style>\
+                      table {\
+  border-collapse: collapse;\
+  width: 100%;\
+  font-size: 30px;\
+}\
+\
+table, th, td {\
+  border: 1px solid black;\
+}\
+</style>\
+<H1> Battery Charger Labels</H1>\
+<form method=\"post\" enctype=\"application/x-www-form-urlencoded\" action=\"/postform/\">");
+
+  sprintf(tempstr, "<H3>Labels for each battery</H3>\n");
+  strcat(responseHTML, tempstr);
+
+  strcat(responseHTML, "<TABLE><TR><TH>Battery</TH><TH>Label</TH>\n");
+
+  for (int i = 0; i < RELAYS; i++) {
+    char tmplabel[50];
+    labelTXT[i].toCharArray(tmplabel,sizeof(tmplabel));
+    sprintf(tempstr, "<TR><TD> %d </TD><TD><input type=\"text\" name=\"%d\" value=\"%s\"> </TD><TR>\n",
+              i + 1,i + 1,tmplabel);
+    strcat(responseHTML, tempstr);
+  }
+  strcat(responseHTML, "</TABLE>");
+  strcat(responseHTML, "<input type=\"submit\" value=\"Submit\">\
+    </form>\
+    <A href=\"/\">Return to Battery Display</A>\
+    </body></html>\n");
+  if (DEBUG)
+    Serial.print(responseHTML);
+  delay(100);// Serial.print(responseHTML);
+  webServer.send(200, "text/html", responseHTML);
+
+}
 
 // Web Server page handler
 void handlePage () {
-  char tempstr[512];
+  char tempstr[1024];
 
   strcpy(responseHTML, "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"20\">\
                       <title>Battery Charger</title></head><body>\
@@ -139,7 +182,7 @@ table, th, td {\
 }\
 </style>\
 <H1> Battery Charger </H1>\
-<form method=\"post\" enctype=\"application/x-www-form-urlencoded\" action=\"/postform/\">");
+");
 
   sprintf(tempstr, "<H3>Time since boot %d minutes %d hours %d days</H3>\n", runMinutes, runHours, runDays);
   strcat(responseHTML, tempstr);
@@ -151,12 +194,12 @@ table, th, td {\
     char tmplabel[50];
     labelTXT[i].toCharArray(tmplabel,sizeof(tmplabel));
     if ( i == currentCharger && !allCharged) {
-      sprintf(tempstr, "<TR><TD style=\"background-color:Tomato;\"> %d <input type=\"text\" name=\"%d\" value=\"%s\"></TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d %d </TD><TR>\n",
-              i + 1,i+1, tmplabel  , batVolts[i], CHARGEMINUTES[(int)batVolts[i]], minutes, batteryCharged[i], batteryConnected[i]);
+      sprintf(tempstr, "<TR><TD style=\"background-color:Tomato;\"> %d (%s)</TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d %d </TD><TR>\n",
+              i + 1, tmplabel  , batVolts[i], CHARGEMINUTES[(int)batVolts[i]], minutes, batteryCharged[i], batteryConnected[i]);
     } else {
       
-      sprintf(tempstr, "<TR><TD> %d <input type=\"text\" name=\"%d\" value=\"%s\"> </TD><TD> %5.2f </TD> <TD> %d  </TD><TD> %d %d </TD><TR>\n",
-              i + 1, i+1, tmplabel  ,batVolts[i], CHARGEMINUTES[(int)batVolts[i]], batteryCharged[i], batteryConnected[i]);
+      sprintf(tempstr, "<TR><TD> %d (%s) </TD><TD> %5.2f </TD> <TD> %d  </TD><TD> %d %d </TD><TR>\n",
+              i + 1, tmplabel  ,batVolts[i], CHARGEMINUTES[(int)batVolts[i]], batteryCharged[i], batteryConnected[i]);
     }
     strcat(responseHTML, tempstr);
   }
@@ -164,10 +207,8 @@ table, th, td {\
   if (allCharged) {
     sprintf(tempstr, "<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n", (60 - (runMinutes % 60)));
     strcat(responseHTML, tempstr);
-  }
-  strcat(responseHTML, "<input type=\"submit\" value=\"Submit\">\
-    </form>\
-    </body></html>\n");
+  } 
+  strcat(responseHTML, "<A href=\"/editlabels\">Edit Battery Labels</A> </body></html>\n");
   if (DEBUG)
     Serial.print(responseHTML);
   delay(100);// Serial.print(responseHTML);
@@ -220,7 +261,7 @@ int mySmartConfig() {
 void setup() {
   Serial.begin(115200);
   logger.attach(60, logbat);
-  responseHTML = (char *)malloc(10000);
+  responseHTML = (char *)malloc(15000);
 #if defined(ESP32)
   uint64_t chipid = ESP.getEfuseMac(); // The chip ID is essentially its MAC address(length: 6 bytes).
   uint16_t chip = (uint16_t)(chipid >> 32);
@@ -265,6 +306,7 @@ void setup() {
   webServer.on("/postform/", handleForm);
   webServer.on("/rmfiles", rmfiles);
   webServer.on("/labels", labels);
+  webServer.on("/editlabels", formPage);
   webServer.onNotFound(handlePage);
   webServer.begin();
 
@@ -283,8 +325,9 @@ void setup() {
   firstBoot = 1;
   // Initialise the label arrays
   for ( int i = 0; i < RELAYS; i++ ) {
+    int j = i+1;
     labelTXT[i] = "Label " ;
-    labelTXT[i] = labelTXT[i] + i;
+    labelTXT[i] = labelTXT[i] + j;
   }
   // Create the filesystem 
   // LittleFS.format();
