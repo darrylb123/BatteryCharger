@@ -1,6 +1,6 @@
 /* Battery Charger Multiplexer using ESP8266 or ESP32*/
 #define STATION 1
-// #define SOFTAP 1
+//#define SOFTAP 1
 #define DEBUG 0
 #include <stdio.h>
 #if defined(ESP8266)
@@ -419,7 +419,7 @@ int pickBattery(int num) {
         batteryCharged[i] = 1;
       else
         batteryCharged[i] = 0;
-      if (batVolts[i] > 4.0)
+      if (batVolts[i] > 4.0 && batVolts[i] < 15.2) // Some chargers have 16V or so open circuit
         batteryConnected[i] = 1;
       else
         batteryConnected[i] = 0;
@@ -446,7 +446,8 @@ void loop() {
   dnsServer.processNextRequest();
 #endif
   webServer.handleClient();
-  if (!allCharged && currentCharger < RELAYS) batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION; //If no battery is selected the analog on battery1 is erronious
+  if (!allCharged && currentCharger < RELAYS) 
+    batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION; //If no battery is selected the analog on battery1 is erronious
   // See if we have rolled over, delayed enough or current battery has < 1.2V
   // if all batteries are charged, pickBattery will set the lastDay 1 in front so that it waits until then to attempt charging again
   if ((!allCharged && runMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]])) || ( runMinutes < lastMinutes)) {
@@ -458,7 +459,7 @@ void loop() {
       currentCharger++;
     }
 
-    if (currentCharger >= RELAYS ) {
+    if (currentCharger >= RELAYS ) { // At the end of a cycle check all the batteries to see if any need charging again
       currentCharger = 0; 
       pickBattery(RELAYS);
     }
