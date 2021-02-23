@@ -415,15 +415,7 @@ int pickBattery(int num) {
       digitalWrite(bankPin[i], HIGH);
       digitalWrite(gpioPin[i], LOW);
       delay(SCAN);
-      batVolts[i] = analogRead(sensorPin) * CALIBRATION;
-      if (batVolts[i] > fullyCharged)
-        batteryCharged[i] = 1;
-      else
-        batteryCharged[i] = 0;
-      if (batVolts[i] > 4.0 && batVolts[i] < 15.2) // Some chargers have 16V or so open circuit
-        batteryConnected[i] = 1;
-      else
-        batteryConnected[i] = 0;
+      batteryState(i);
       if (batteryConnected[i] && !batteryCharged[i]) {
         allCharged = 0;
         lastDay = runDays;
@@ -445,6 +437,19 @@ int pickBattery(int num) {
   }
 }
 
+int batteryState(int batnum) {
+  batVolts[batnum] = analogRead(sensorPin) * CALIBRATION;
+  if (batVolts[batnum] > fullyCharged)
+      batteryCharged[batnum] = 1;
+  else
+      batteryCharged[batnum] = 0;
+  if (batVolts[batnum] > 4.0 && batVolts[batnum] < 15.2) // Some chargers have 16V or so open circuit
+      batteryConnected[batnum] = 1;
+  else
+      batteryConnected[batnum] = 0;
+  return(batteryCharged[batnum]);
+}
+
 
 void loop() {
 #if defined(SOFTAP)
@@ -452,7 +457,7 @@ void loop() {
 #endif
   webServer.handleClient();
   if (!allCharged && currentCharger < RELAYS) 
-    batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION; //If no battery is selected the analog on battery1 is erronious
+    batteryState(currentCharger);
     
   // See if we have rolled over, delayed enough or current battery has < 1.2V
   // if all batteries are charged, pickBattery will set the lastDay 1 in front so that it waits until then to attempt charging again
