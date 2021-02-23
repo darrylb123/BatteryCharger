@@ -1,6 +1,6 @@
 /* Battery Charger Multiplexer using ESP8266 or ESP32*/
 #define STATION 1
-//#define SOFTAP 1
+// #define SOFTAP 1
 #define DEBUG 0
 #include <stdio.h>
 #if defined(ESP8266)
@@ -68,7 +68,7 @@ const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/0
 const int sensorPin = 34;
 #endif
 
-const int SCAN = 50; // Delay in ms between each battery when scanning 
+const int SCAN = 100; // Delay in ms between each battery when scanning 
 char sapString[30]; // SSID and mqtt name unique by reading chip ID
 float batVolts[RELAYS];
 int batteryCharged[RELAYS];
@@ -187,18 +187,18 @@ table, th, td {\
   sprintf(tempstr, "<H3>Time since boot %d minutes %d hours %d days</H3>\n", runMinutes, runHours, runDays);
   strcat(responseHTML, tempstr);
 
-  strcat(responseHTML, "<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH><TH>Flags</TH>\n");
+  strcat(responseHTML, "<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH><TH>Charged</TH><TH>Connected</TH>\n");
 
   int minutes = CHARGEMINUTES[(int)batVolts[currentCharger]] - ( runMinutes - lastMinutes ) ; // Calculate charging time on this battery
   for (int i = 0; i < RELAYS; i++) {
     char tmplabel[50];
     labelTXT[i].toCharArray(tmplabel,sizeof(tmplabel));
     if ( i == currentCharger && !allCharged) {
-      sprintf(tempstr, "<TR><TD style=\"background-color:Tomato;\"> %d (%s)</TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d %d </TD><TR>\n",
+      sprintf(tempstr, "<TR><TD style=\"background-color:Tomato;\"> %d (%s)</TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d </TD><TD> %d </TD><TR>\n",
               i + 1, tmplabel  , batVolts[i], CHARGEMINUTES[(int)batVolts[i]], minutes, batteryCharged[i], batteryConnected[i]);
     } else {
       
-      sprintf(tempstr, "<TR><TD> %d (%s) </TD><TD> %5.2f </TD> <TD> %d  </TD><TD> %d %d </TD><TR>\n",
+      sprintf(tempstr, "<TR><TD> %d (%s) </TD><TD> %5.2f </TD> <TD> %d  </TD><TD> %d </TD><TD> %d </TD><TR>\n",
               i + 1, tmplabel  ,batVolts[i], CHARGEMINUTES[(int)batVolts[i]], batteryCharged[i], batteryConnected[i]);
     }
     strcat(responseHTML, tempstr);
@@ -318,8 +318,9 @@ void setup() {
   }
   pinMode(15, OUTPUT);
   digitalWrite(15, HIGH);
-  pickBattery(RELAYS);
+  pickBattery(RELAYS); // Scan all Batteries on boot
   currentCharger = 0;
+  pickBattery(currentCharger); //Start with the first battery
   lastMinutes = runMinutes;
   lastDay = runDays;
   firstBoot = 1;
@@ -432,6 +433,10 @@ int pickBattery(int num) {
 
       Serial.print(" ");
       Serial.print(batVolts[i]);
+      Serial.print(" ");
+      Serial.print(batteryCharged[i]);
+      Serial.print(batteryConnected[i]);
+
       digitalWrite(gpioPin[i], HIGH);
       digitalWrite(bankPin[i], LOW);
     }
@@ -448,6 +453,7 @@ void loop() {
   webServer.handleClient();
   if (!allCharged && currentCharger < RELAYS) 
     batVolts[currentCharger] = analogRead(sensorPin) * CALIBRATION; //If no battery is selected the analog on battery1 is erronious
+    
   // See if we have rolled over, delayed enough or current battery has < 1.2V
   // if all batteries are charged, pickBattery will set the lastDay 1 in front so that it waits until then to attempt charging again
   if ((!allCharged && runMinutes >= (lastMinutes + CHARGEMINUTES[(int)batVolts[currentCharger]])) || ( runMinutes < lastMinutes)) {
