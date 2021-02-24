@@ -1,3 +1,18 @@
+#if defined(SOFTAP)
+#include "DNSServer.h"                  // Patched lib
+// Capture DNS requests on port 53
+IPAddress         apIP(10, 10, 10, 1);    // Private network for server
+DNSServer         dnsServer;              // Create the DNS object
+
+#endif
+#if defined(ESP8266)
+#include <ESP8266WiFi.h>
+#elif defined(ESP32)
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WiFiAP.h>
+#endif
+
 // Wifi Functions choose between Statoin or SoftAP
 
 
@@ -70,5 +85,47 @@ int mySmartConfig() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
+  }
+}
+
+
+int wifiLoop(){
+#if defined(SOFTAP)
+  dnsServer.processNextRequest();
+#endif
+  // Look for reset command from USB
+  serialEvent();
+  if (stringComplete) {
+    Serial.println(inputString);
+    if (inputString.substring(0) == "reset") {
+      Serial.println("Resetting Wifi Configuration");
+      WiFi.disconnect(true);
+      mySmartConfig();
+      delay(5000);
+      ESP.restart();
+    }
+    //clear the string:
+    inputString = "";
+    stringComplete = false;
+  }
+}
+
+
+//Read a string from USB
+void serialEvent() {
+  while (Serial.available()) {
+    // get the new byte:
+    char inChar = (char)Serial.read();
+    // add it to the inputString:
+    //Serial.print(inChar);
+
+    // if the incoming character is a newline, set a flag
+    // so the main loop can do something about it:
+    if (inChar == '\n') {
+      // Serial.println("String Complete");
+      stringComplete = true;
+    } else {
+      inputString += inChar;
+    }
   }
 }

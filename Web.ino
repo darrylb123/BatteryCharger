@@ -1,3 +1,23 @@
+
+#if defined(ESP8266)
+#include <ESP8266WebServer.h>
+#include <FS.h>
+#include <LittleFS.h>
+#elif defined(ESP32)
+#include <WebServer.h>
+#include <LITTLEFS.h>
+#endif
+#if defined(ESP8266)
+ESP8266WebServer  webServer(80);          // HTTP server
+#define MYFS LittleFS
+#define FORMAT_LITTLEFS_IF_FAILED 
+
+#elif defined(ESP32)
+WebServer  webServer(80);
+#define MYFS LITTLEFS
+#define FORMAT_LITTLEFS_IF_FAILED true
+#endif
+
 // Various functions to build the web pages
 void initialiseWebUI(){
   // Allocate web page memory
@@ -198,4 +218,8 @@ void labels() {
     Serial.write(file.read());
   }
   file.close();
+}
+
+int webLoop(){
+    webServer.handleClient();
 }

@@ -3,29 +3,10 @@
 // #define SOFTAP 1
 #define DEBUG 0
 #include <stdio.h>
-#if defined(ESP8266)
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
 #include <Ticker.h>
-#include <FS.h>
 
-#include <LittleFS.h>
-#elif defined(ESP32)
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <WiFiAP.h>
-#include <WebServer.h>
-#include <Ticker.h>
-#include <LITTLEFS.h>
-#endif
 
-#if defined(SOFTAP)
-#include "DNSServer.h"                  // Patched lib
-// Capture DNS requests on port 53
-IPAddress         apIP(10, 10, 10, 1);    // Private network for server
-DNSServer         dnsServer;              // Create the DNS object
 
-#endif
 
 // An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
 // Volts                     0, 1,  2,  3,  4,  5,  6,  7,  8,    9,    10,   11,   12, 13, 14, 15, 16
@@ -39,16 +20,6 @@ int stringComplete;
 Ticker minutes;
 
 
-#if defined(ESP8266)
-ESP8266WebServer  webServer(80);          // HTTP server
-#define MYFS LittleFS
-#define FORMAT_LITTLEFS_IF_FAILED 
-
-#elif defined(ESP32)
-WebServer  webServer(80);
-#define MYFS LITTLEFS
-#define FORMAT_LITTLEFS_IF_FAILED true
-#endif
 
 // Wemos D1R2 only supports 8 relays 
 // Wemos R32 supports 16 relays
@@ -215,10 +186,8 @@ int batteryState(int batnum) {
 
 
 void loop() {
-#if defined(SOFTAP)
-  dnsServer.processNextRequest();
-#endif
-  webServer.handleClient();
+  wifiLoop();
+  webLoop();
   batteryState(currentCharger);
   
   // Read the battery voltage each hour if fully charged
@@ -226,24 +195,7 @@ void loop() {
     scanAll();
     lastHour = runHours;
   }
-
-  // Look for reset command from USB
-  serialEvent();
-  if (stringComplete) {
-    Serial.println(inputString);
-    if (inputString.substring(0) == "reset") {
-      Serial.println("Resetting Wifi Configuration");
-      WiFi.disconnect(true);
-      mySmartConfig();
-      delay(5000);
-      ESP.restart();
-    }
-    //clear the string:
-    inputString = "";
-    stringComplete = false;
-  }
-
-
+  delay(50); // Waste a little time 
 }
 
 void logbat () {
@@ -256,22 +208,4 @@ void logbat () {
   if (allCharged)
     bat = bat + " All Charged";
   Serial.println(bat);
-}
-//Read a string from USB
-void serialEvent() {
-  while (Serial.available()) {
-    // get the new byte:
-    char inChar = (char)Serial.read();
-    // add it to the inputString:
-    //Serial.print(inChar);
-
-    // if the incoming character is a newline, set a flag
-    // so the main loop can do something about it:
-    if (inChar == '\n') {
-      // Serial.println("String Complete");
-      stringComplete = true;
-    } else {
-      inputString += inChar;
-    }
-  }
 }
