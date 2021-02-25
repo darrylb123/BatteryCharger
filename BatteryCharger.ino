@@ -15,7 +15,7 @@ DNSServer         dnsServer;              // Create the DNS object
 
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>
-
+#include <ESP8266WiFiType.h>
 #elif defined(ESP32)
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -144,8 +144,10 @@ int scanAll(){
   Serial.println("Scanning");
   // Set all Charged to off to allow reading voltages
   allCharged = 0;
+  currentCharger = 0;
   for (int i = 0; i < RELAYS; i++) {
     digitalWrite(bankPin[i], HIGH);
+    delay(SCAN); // Allow time to power the module
     digitalWrite(gpioPin[i], LOW);
     delay(SCAN);
     batteryState(i);
@@ -210,7 +212,7 @@ void loop() {
   batteryState(currentCharger);
   
   // Read the battery voltage each hour if fully charged
-  if ((runHours > lastHour) && allCharged) {
+  if ((runHours > lastHour) && batteriesCharged()) {
     scanAll();
     lastHour = runHours;
   }

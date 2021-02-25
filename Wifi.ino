@@ -3,7 +3,7 @@
 // Wifi Functions choose between Station or SoftAP
 
 #if defined(STATION)
-
+#if defined(ESP32)
 void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
   Serial.println("Connected to AP successfully!");
 }
@@ -21,6 +21,7 @@ void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
   Serial.println("Trying to Reconnect");
   WiFi.begin();
 }
+#endif
 #endif
 
 // build a unique hostname and SAP string
@@ -56,9 +57,12 @@ void wifiStartup(){
   #endif
   
   WiFi.begin();
+  #if defined(ESP32)
   WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED);
   WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP);
   WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
+  #endif
+  
   delay(5000);
   if (WiFi.status() != WL_CONNECTED) {
     mySmartConfig();
@@ -67,7 +71,8 @@ void wifiStartup(){
   String hostName = "Hostname: ";
   hostName = hostName + sapString;
   Serial.println(hostName);
-
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
   // delay(500);  
