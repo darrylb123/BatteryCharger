@@ -1,20 +1,27 @@
-#if defined(SOFTAP)
-#include "DNSServer.h"                  // Patched lib
-// Capture DNS requests on port 53
-IPAddress         apIP(10, 10, 10, 1);    // Private network for server
-DNSServer         dnsServer;              // Create the DNS object
 
+
+// Wifi Functions choose between Station or SoftAP
+
+#if defined(STATION)
+
+void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("Connected to AP successfully!");
+}
+
+void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
+void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("Disconnected from WiFi access point");
+  Serial.print("WiFi lost connection. Reason: ");
+  Serial.println(info.disconnected.reason);
+  Serial.println("Trying to Reconnect");
+  WiFi.begin();
+}
 #endif
-#if defined(ESP8266)
-#include <ESP8266WiFi.h>
-#elif defined(ESP32)
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <WiFiAP.h>
-#endif
-
-// Wifi Functions choose between Statoin or SoftAP
-
 
 // build a unique hostname and SAP string
 void buildHostname(){
@@ -28,6 +35,7 @@ void buildHostname(){
 }
 
 void wifiStartup(){
+  buildHostname();
 #if defined(SOFTAP)
 
   WiFi.mode(WIFI_AP);
@@ -46,23 +54,24 @@ void wifiStartup(){
   #elif defined(ESP8266)
   WiFi.hostname(sapString); // this sets a unique hostname for DHCP
   #endif
+  
   WiFi.begin();
+  WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED);
+  WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP);
+  WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
   delay(5000);
   if (WiFi.status() != WL_CONNECTED) {
     mySmartConfig();
   }
-
-  Serial.println("WiFi Connected.");
-  String hostName = sapString;
-  hostName = hostName + " ";
-  Serial.print(hostName);
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
+  
+  String hostName = "Hostname: ";
+  hostName = hostName + sapString;
+  Serial.println(hostName);
 
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
-  delay(500);
-  
+  // delay(500);  
+
 #endif
 }
 
@@ -87,6 +96,7 @@ int mySmartConfig() {
     Serial.print(".");
   }
 }
+
 
 
 int wifiLoop(){

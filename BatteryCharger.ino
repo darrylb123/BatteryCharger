@@ -5,7 +5,22 @@
 #include <stdio.h>
 #include <Ticker.h>
 
+#if defined(SOFTAP)
+#include "DNSServer.h"                  // Patched lib
+// Capture DNS requests on port 53
+IPAddress         apIP(10, 10, 10, 1);    // Private network for server
+DNSServer         dnsServer;              // Create the DNS object
 
+#endif
+
+#if defined(ESP8266)
+#include <ESP8266WiFi.h>
+
+#elif defined(ESP32)
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WiFiAP.h>
+#endif
 
 
 // An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
@@ -58,9 +73,9 @@ String labelTXT[RELAYS];
 void setup() {
   Serial.begin(115200);
   // Start Minute Ticker
+  // Ticker is where all the action happens
   minutes.attach(60, eachMinute);
   
-  buildHostname();
   wifiStartup();
   initialiseWebUI();
 
@@ -77,7 +92,8 @@ void setup() {
   batteriesCharged(); // See if they are allCharged
   
   currentCharger = 0;
-  pickBattery(currentCharger); //Start with the first battery
+  if (!allCharged) 
+    pickBattery(currentCharger); //Start with the first battery
   lastMinutes = runMinutes;
   lastDay = runDays;
   firstBoot = 1;
@@ -96,7 +112,7 @@ void eachMinute (){
     lastMinutes = runMinutes;
     lastDay = runDays;
   }
-  if ( ! (runMinutes % 60) ) {
+  if ( ! (runMinutes % 15) ) {
     runHours++;
   }
   if ( ! (runMinutes % 1440) ) {
@@ -110,6 +126,9 @@ void eachMinute (){
     lastDay = runDays;
     currentCharger++;
   }
+  
+  if (allCharged)
+    currentCharger = 0;
 
   if (currentCharger >= RELAYS ) { // At the end of a cycle check all the batteries to see if any need charging again
     currentCharger = 0;
@@ -135,9 +154,9 @@ int scanAll(){
     Serial.print(" ");
     Serial.print(batteryCharged[i]);
     Serial.print(batteryConnected[i]);
-
-    digitalWrite(gpioPin[i], HIGH);
     digitalWrite(bankPin[i], LOW);
+    digitalWrite(gpioPin[i], HIGH);
+    delay(SCAN);
   }
   Serial.println(" ");
   batteriesCharged();
@@ -165,8 +184,8 @@ int pickBattery(int num) {
   } 
 }
 
-int batteryState(int batnum) {
-  if (allCharged) return(0);  if (batnum >= RELAYS) {
+int batteryState(int batnum) { 
+  if (batnum >= RELAYS) {
     Serial.println("Error: Past End of RELAYS Array");
     return(0);
   }
