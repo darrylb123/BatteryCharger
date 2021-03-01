@@ -55,6 +55,7 @@ const int sensorPin = 34;
 #endif
 
 const int SCAN = 100; // Delay in ms between each battery when scanning 
+const int TESTCYCLE = 15; // Cycle time for testing batteries
 char sapString[30]; // SSID and mqtt name unique by reading chip ID
 float batVolts[RELAYS];
 int batteryCharged[RELAYS];
@@ -112,7 +113,7 @@ void eachMinute (){
     lastMinutes = runMinutes;
     lastDay = runDays;
   }
-  if ( ! (runMinutes % 15) ) {
+  if ( ! (runMinutes % TESTCYCLE) ) {
     runHours++;
   }
   if ( ! (runMinutes % 1440) ) {
@@ -193,15 +194,26 @@ int batteryState(int batnum) {
   }
   if(allCharged) return(0);
   
+  int rel = digitalRead(gpioPin[batnum]);
+  int bank = digitalRead(bankPin[batnum]);
+  if ( rel || ! bank) {
+    char err[50];
+    sprintf(err,"Error Relay %d not zero %d or bank one %d",batnum + 1, rel, bank);
+    Serial.println(err);
+    return(0);
+  }
+  
   batVolts[batnum] = analogRead(sensorPin) * CALIBRATION;
   if (batVolts[batnum] > fullyCharged)
       batteryCharged[batnum] = 1;
   else
       batteryCharged[batnum] = 0;
-  if (batVolts[batnum] > 4.0 && batVolts[batnum] < 15.2) // Some chargers have 16V or so open circuit
+  if (batVolts[batnum] > 4.0 && batVolts[batnum] < 15.2) { // Some chargers have 16V or so open circuit
       batteryConnected[batnum] = 1;
-  else
+  } else {
       batteryConnected[batnum] = 0;
+      batteryCharged[batnum] = 0;
+  }
   return(batteryCharged[batnum]);
 }
 

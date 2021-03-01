@@ -127,7 +127,7 @@ table, th, td {\
 <H1> Battery Charger </H1>\
 ");
 
-  sprintf(tempstr, "<H3>Time since boot %d minutes %d hours %d days</H3>\n", runMinutes, runHours, runDays);
+  sprintf(tempstr, "<H3>Time since boot %d minutes %d hours %d days</H3>\n", runMinutes, runHours/(60/TESTCYCLE), runDays);
   strcat(responseHTML, tempstr);
 
   strcat(responseHTML, "<TABLE><TR><TH>Battery</TH><TH>Volts</TH><TH>Minutes</TH><TH>Charged</TH><TH>Connected</TH>\n");
@@ -148,7 +148,7 @@ table, th, td {\
   }
   strcat(responseHTML, "</TABLE>");
   if (allCharged) {
-    sprintf(tempstr, "<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n", (60 - (runMinutes % 60)));
+    sprintf(tempstr, "<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n", (TESTCYCLE - (runMinutes % TESTCYCLE)));
     strcat(responseHTML, tempstr);
   } 
   strcat(responseHTML, "<A href=\"/editlabels\">Edit Battery Labels</A> </body></html>\n");
