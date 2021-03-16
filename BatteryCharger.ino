@@ -143,6 +143,11 @@ void eachMinute (){
 int scanAll(){
   // scan all the batteries for voltage
   Serial.println("Scanning");
+  // Initialise all pins to off
+  for (int i = 0; i < RELAYS; i++) {
+    digitalWrite(gpioPin[i], HIGH);
+    digitalWrite(bankPin[i], LOW);
+  }
   // Set all Charged to off to allow reading voltages
   allCharged = 0;
   currentCharger = 0;
