@@ -1,11 +1,15 @@
 
 #if defined(ESP8266)
 #include <ESP8266WebServer.h>
+#include <WiFiClient.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
 #include <FS.h>
 #include <LittleFS.h>
 #elif defined(ESP32)
 #include <WebServer.h>
 #include <LITTLEFS.h>
+#include <Update.h>
 #endif
 #if defined(ESP8266)
 ESP8266WebServer  webServer(80);          // HTTP server
@@ -16,8 +20,46 @@ ESP8266WebServer  webServer(80);          // HTTP server
 WebServer  webServer(80);
 #define MYFS LITTLEFS
 #define FORMAT_LITTLEFS_IF_FAILED true
+
 #endif
 
+const char* serverIndex = 
+"<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
+"<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
+   "<input type='file' name='update'>"
+        "<input type='submit' value='Update'>"
+    "</form>"
+ "<div id='prg'>progress: 0%</div>"
+ "<script>"
+  "$('form').submit(function(e){"
+  "e.preventDefault();"
+  "var form = $('#upload_form')[0];"
+  "var data = new FormData(form);"
+  " $.ajax({"
+  "url: '/update',"
+  "type: 'POST',"
+  "data: data,"
+  "contentType: false,"
+  "processData:false,"
+  "xhr: function() {"
+  "var xhr = new window.XMLHttpRequest();"
+  "xhr.upload.addEventListener('progress', function(evt) {"
+  "if (evt.lengthComputable) {"
+  "var per = evt.loaded / evt.total;"
+  "$('#prg').html('progress: ' + Math.round(per*100) + '%');"
+  "}"
+  "}, false);"
+  "return xhr;"
+  "},"
+  "success:function(d, s) {"
+  "console.log('success!')" 
+ "},"
+ "error: function (a, b, c) {"
+ "}"
+ "});"
+ "});"
+ "</script>";
+ 
 // Various functions to build the web pages
 void initialiseWebUI(){
   // Allocate web page memory
@@ -27,6 +69,65 @@ void initialiseWebUI(){
   webServer.on("/rmfiles", rmfiles);
   webServer.on("/labels", labels);
   webServer.on("/editlabels", formPage);
+  webServer.on("/serverIndex", HTTP_GET, []() {
+    webServer.sendHeader("Connection", "close");
+    webServer.send(200, "text/html", serverIndex);
+  });
+  #if defined(ESP8266)
+  webServer.on("/update", HTTP_POST, []() {
+      webServer.sendHeader("Connection", "close");
+      webServer.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+      ESP.restart();
+    }, []() {
+      HTTPUpload& upload = webServer.upload();
+      if (upload.status == UPLOAD_FILE_START) {
+        Serial.setDebugOutput(true);
+        WiFiUDP::stopAll();
+        Serial.printf("Update: %s\n", upload.filename.c_str());
+        uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+        if (!Update.begin(maxSketchSpace)) { //start with max available size
+          Update.printError(Serial);
+        }
+      } else if (upload.status == UPLOAD_FILE_WRITE) {
+        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+          Update.printError(Serial);
+        }
+      } else if (upload.status == UPLOAD_FILE_END) {
+        if (Update.end(true)) { //true to set the size to the current progress
+          Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+        } else {
+          Update.printError(Serial);
+        }
+        Serial.setDebugOutput(false);
+      }
+      yield();
+    });
+  #elif defined(ESP32)
+  webServer.on("/update", HTTP_POST, []() {
+    webServer.sendHeader("Connection", "close");
+    webServer.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    ESP.restart();
+  }, []() {
+    HTTPUpload& upload = webServer.upload();
+    if (upload.status == UPLOAD_FILE_START) {
+      Serial.printf("Update: %s\n", upload.filename.c_str());
+      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+      /* flashing firmware to ESP*/
+      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_END) {
+      if (Update.end(true)) { //true to set the size to the current progress
+        Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+      } else {
+        Update.printError(Serial);
+      }
+    }
+  });
+  #endif
   webServer.onNotFound(handlePage);
   webServer.begin();
   
@@ -151,7 +252,7 @@ table, th, td {\
     sprintf(tempstr, "<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n", (TESTCYCLE - (runMinutes % TESTCYCLE)));
     strcat(responseHTML, tempstr);
   } 
-  strcat(responseHTML, "<A href=\"/editlabels\">Edit Battery Labels</A> </body></html>\n");
+  strcat(responseHTML, "<A href=\"/editlabels\">Edit Battery Labels</A> <BR><A href=\"/serverIndex\">Update Firmware</A> </body></html>\n");
   if (DEBUG)
     Serial.print(responseHTML);
   delay(100);// Serial.print(responseHTML);
