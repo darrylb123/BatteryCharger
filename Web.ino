@@ -274,9 +274,10 @@ void handleForm() {
         labelTXT[whichlabel] = webServer.arg(i);
       message += " " + webServer.argName(i) + ": " + webServer.arg(i) + "\n";
     }
-    webServer.send(200, "text/plain", message);
     Serial.print(message);
+    
     writeFile();
+    formPage();
   }
 }
 
