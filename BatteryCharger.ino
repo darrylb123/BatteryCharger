@@ -51,10 +51,9 @@ const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / 
 
 #elif defined(ESP32)
 const int RELAYS = 14; 
-const int gpioPin[] = { 26, 25, 17, 16, 27, 14, 12, 26, 25, 17, 16, 27, 14, 12 };
+const int gpioPin[] =       { 26, 25, 17, 16, 27, 14, 12, 26, 25, 17, 16, 27, 14, 12 };
 const int chargeDisable[] = { 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13 };
-const int bankPin[] = { 5, 5, 5, 5, 5, 5, 5, 23, 23, 23, 23, 23, 23, 23 }; // Relay bank enable pin
-const int chargerDisable = 13 ;
+const int bankPin[] =       {  5,  5,  5,  5,  5,  5,  5, 23, 23, 23, 23, 23, 23, 23 }; // Relay bank enable pin
 const float CALIBRATION = 0.004126132; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
 #endif
@@ -89,6 +88,7 @@ void setup() {
   for (int i = 0; i < RELAYS; i++) {
     pinMode(gpioPin[i], OUTPUT);
     pinMode(bankPin[i], OUTPUT);
+    pinMode(chargeDisable[i], OUTPUT);
     digitalWrite(gpioPin[i], HIGH);
     digitalWrite(bankPin[i], LOW); // The bank pin supplies 3.3V for the optocouplers supply. LOW disables the particular bank
   }
@@ -147,6 +147,7 @@ void eachMinute (){
 int scanAll(){
   int j;
   // scan all the batteries for voltage
+  // Disable the charger to read actual battery volts
   Serial.println("Scanning");
   // Initialise all pins to off
   
@@ -216,11 +217,16 @@ int batteryState(int batnum) {
     Serial.println("Error: Past End of RELAYS Array");
     return(0);
   }
-  if(allCharged) return(0);
+  // if(allCharged) return(0);
   
   int rel = digitalRead(gpioPin[batnum]);
   int bank = digitalRead(bankPin[batnum]);
-  if ( rel || ! bank) {
+  int enabled = digitalRead(chargeDisable[batnum]);
+  if ( enabled ) {
+    Serial.println("Charger is enabled, no point reading voltage");
+    return(0); 
+  }
+  if ( rel || ! bank ) {
     char err[50];
     sprintf(err,"Error Relay %d not zero %d or bank one %d",batnum + 1, rel, bank);
     Serial.println(err);
@@ -245,7 +251,6 @@ int batteryState(int batnum) {
 void loop() {
   wifiLoop();
   webLoop();
-  batteryState(currentCharger);
   
   // Read the battery voltage each hour if fully charged
   if ((runHours > lastHour) && batteriesCharged()) {
