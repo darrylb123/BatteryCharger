@@ -39,22 +39,27 @@ Ticker minutes;
 // Wemos D1R2 only supports 8 relays 
 // Wemos R32 supports 16 relays
 #if defined(ESP8266)
-const int RELAYS = 8;
-const int gpioPin[] = { 16, 5, 4, 0, 2, 14, 12, 13 };
-const int bankPin[] = { 15, 15, 15, 15, 15, 15, 15, 15 }; // Relay bank enable pin
+const int RELAYS = 7;
+const int gpioPin[] = { 16, 5, 4, 0, 2, 14, 12 };
+const int chargeDisable[] = { 13, 13, 13, 13, 13, 13, 13 };
+const int bankPin[] = { 15, 15, 15, 15, 15, 15, 15 }; // Relay bank enable pin
+const int chargerEnable = 13 ;
+
 const int sensorPin = A0;
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
 
 
 #elif defined(ESP32)
-const int RELAYS = 16; 
-const int gpioPin[] = { 26, 25, 17, 16, 27, 14, 12, 13, 26, 25, 17, 16, 27, 14, 12, 13 };
-const int bankPin[] = {5, 5, 5, 5, 5, 5, 5, 5, 23, 23, 23, 23, 23, 23, 23, 23 }; // Relay bank enable pin
-const float CALIBRATION = 0.004042956; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
+const int RELAYS = 14; 
+const int gpioPin[] = { 26, 25, 17, 16, 27, 14, 12, 26, 25, 17, 16, 27, 14, 12 };
+const int chargeDisable[] = { 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13 };
+const int bankPin[] = { 5, 5, 5, 5, 5, 5, 5, 23, 23, 23, 23, 23, 23, 23 }; // Relay bank enable pin
+const int chargerDisable = 13 ;
+const float CALIBRATION = 0.004126132; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
 #endif
 
-const int SCAN = 100; // Delay in ms between each battery when scanning 
+const int SCAN = 1000; // Delay in ms between each battery when scanning 
 const int TESTCYCLE = 15; // Cycle time for testing batteries
 char sapString[30]; // SSID and mqtt name unique by reading chip ID
 float batVolts[RELAYS];
@@ -134,39 +139,53 @@ void eachMinute (){
   if (currentCharger >= RELAYS ) { // At the end of a cycle check all the batteries to see if any need charging again
     currentCharger = 0;
     scanAll(); 
-    batteriesCharged();
   }
   // Check if all batteries are charged. pickBattery wont charge any if all charged
   pickBattery(currentCharger);
 }
 
 int scanAll(){
+  int j;
   // scan all the batteries for voltage
   Serial.println("Scanning");
   // Initialise all pins to off
-  for (int i = 0; i < RELAYS; i++) {
-    digitalWrite(gpioPin[i], HIGH);
-    digitalWrite(bankPin[i], LOW);
-  }
+  
   // Set all Charged to off to allow reading voltages
   allCharged = 0;
   currentCharger = 0;
   for (int i = 0; i < RELAYS; i++) {
+    for (int i = 0; i < RELAYS; i++) {
+      digitalWrite(gpioPin[i], HIGH);
+      digitalWrite(chargeDisable[i], HIGH);
+      digitalWrite(bankPin[i], LOW);
+    }
+    j = millis();
+    while(millis() < (j+SCAN)){
+      webLoop();
+    }
     digitalWrite(bankPin[i], HIGH);
-    delay(SCAN); // Allow time to power the module
+    delay(100); // Allow time to power the module
     digitalWrite(gpioPin[i], LOW);
-    delay(SCAN);
-    batteryState(i);
+    digitalWrite(chargeDisable[i], LOW);
+    delay(100);
+    j = millis();
+    while(millis() < (j+500)){
+      batteryState(i);
+      webLoop();
+    }
+    
     Serial.print(" ");
     Serial.print(batVolts[i]);
     Serial.print(" ");
     Serial.print(batteryCharged[i]);
     Serial.print(batteryConnected[i]);
-    digitalWrite(bankPin[i], LOW);
-    digitalWrite(gpioPin[i], HIGH);
-    delay(SCAN);
   }
   Serial.println(" ");
+  for (int i = 0; i < RELAYS; i++) {
+    digitalWrite(gpioPin[i], HIGH);
+    digitalWrite(chargeDisable[i], HIGH);
+    digitalWrite(bankPin[i], LOW);
+  }
   batteriesCharged();
 }
 
@@ -233,7 +252,7 @@ void loop() {
     scanAll();
     lastHour = runHours;
   }
-  delay(50); // Waste a little time 
+  // delay(50); // Waste a little time 
 }
 
 void logbat () {
