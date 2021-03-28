@@ -43,8 +43,6 @@ const int RELAYS = 7;
 const int gpioPin[] = { 16, 5, 4, 0, 2, 14, 12 };
 const int chargeDisable[] = { 13, 13, 13, 13, 13, 13, 13 };
 const int bankPin[] = { 15, 15, 15, 15, 15, 15, 15 }; // Relay bank enable pin
-const int chargerEnable = 13 ;
-
 const int sensorPin = A0;
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
 
