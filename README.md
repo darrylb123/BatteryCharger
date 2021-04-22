@@ -14,4 +14,4 @@ Electricals drawings by Qelectrotech.
 
 ![alt text](2_7_way_multiplexed_battery_charger.png "7 way Wiring Diagram")
 
-![alt text](1_14_way_multiplexed_battery_charger.png "7 way Wiring Diagram")
+![alt text](1_14_way__multiplexed_battery_charger.png"7 way Wiring Diagram")
