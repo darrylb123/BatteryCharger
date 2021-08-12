@@ -1,9 +1,18 @@
 /* Battery Charger Multiplexer using ESP8266 or ESP32*/
 #define STATION 1
 // #define SOFTAP 1
+#define VER2 1
 #define DEBUG 0
 #include <stdio.h>
 #include <Ticker.h>
+
+#if defined(VER2)
+#define ENERG LOW
+#define DEENERG HIGH
+#else
+#define ENERG HIGH
+#define DEENERG LOW
+#endif
 
 #if defined(SOFTAP)
 #include "DNSServer.h"                  // Patched lib
@@ -40,11 +49,20 @@ Ticker minutes;
 // Wemos R32 supports 16 relays
 #if defined(ESP8266)
 const int RELAYS = 7;
+#if defined(VER2) 
+const int gpioPin[] = { 16, 14, 12, 13, 15, 0, 4 };
+const int chargeDisable[] = { 5, 5, 5, 5, 5, 5, 5 };
+const int bankPin[] = { 3, 3, 3, 3, 3, 3, 3 }; // Relay bank enable pin
+const float CALIBRATION = 0.015345269; //15k/1k ohm resistors. Analog in is 0-1V (12/782 measured)
+#else
 const int gpioPin[] = { 16, 5, 4, 0, 2, 14, 12 };
 const int chargeDisable[] = { 13, 13, 13, 13, 13, 13, 13 };
 const int bankPin[] = { 15, 15, 15, 15, 15, 15, 15 }; // Relay bank enable pin
-const int sensorPin = A0;
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
+#endif
+
+const int sensorPin = A0;
+
 
 
 #elif defined(ESP32)
@@ -87,10 +105,9 @@ void setup() {
     pinMode(gpioPin[i], OUTPUT);
     pinMode(bankPin[i], OUTPUT);
     pinMode(chargeDisable[i], OUTPUT);
-    digitalWrite(gpioPin[i], HIGH);
-    digitalWrite(bankPin[i], LOW); // The bank pin supplies 3.3V for the optocouplers supply. LOW disables the particular bank
+    digitalWrite(gpioPin[i], ENERG);
+    digitalWrite(bankPin[i], DEENERG); // The bank pin supplies 3.3V for the optocouplers supply. DEENERG disables the particular bank
   }
-
   
   scanAll(); // Scan all Batteries on boot
   batteriesCharged(); // See if they are allCharged
@@ -154,18 +171,18 @@ int scanAll(){
   currentCharger = 0;
   for (int i = 0; i < RELAYS; i++) {
     for (int i = 0; i < RELAYS; i++) {
-      digitalWrite(gpioPin[i], HIGH);
-      digitalWrite(chargeDisable[i], HIGH);
-      digitalWrite(bankPin[i], LOW);
+      digitalWrite(gpioPin[i], ENERG);
+      digitalWrite(chargeDisable[i], ENERG);
+      digitalWrite(bankPin[i], DEENERG);
     }
     j = millis();
     while(millis() < (j+SCAN)){
       webLoop();
     }
-    digitalWrite(bankPin[i], HIGH);
+    digitalWrite(bankPin[i], ENERG);
     delay(100); // Allow time to power the module
-    digitalWrite(gpioPin[i], LOW);
-    digitalWrite(chargeDisable[i], LOW);
+    digitalWrite(gpioPin[i], DEENERG);
+    digitalWrite(chargeDisable[i], DEENERG);
     delay(100);
     j = millis();
     while(millis() < (j+500)){
@@ -181,9 +198,9 @@ int scanAll(){
   }
   Serial.println(" ");
   for (int i = 0; i < RELAYS; i++) {
-    digitalWrite(gpioPin[i], HIGH);
-    digitalWrite(chargeDisable[i], HIGH);
-    digitalWrite(bankPin[i], LOW);
+    digitalWrite(gpioPin[i], ENERG);
+    digitalWrite(chargeDisable[i], ENERG);
+    digitalWrite(bankPin[i], DEENERG);
   }
   batteriesCharged();
 }
@@ -201,12 +218,12 @@ int batteriesCharged(){
 // Change the relays, either to the next relay or scan all for voltages
 int pickBattery(int num) {
   for (int i = 0; i < RELAYS; i++) {
-    digitalWrite(gpioPin[i], HIGH);
-    digitalWrite(bankPin[i], LOW);
+    digitalWrite(gpioPin[i], ENERG);
+    digitalWrite(bankPin[i], DEENERG);
   }
   if (num < RELAYS && !batteriesCharged()) { // if the number is the same as NUMBER OF RELAYS then check all
-    digitalWrite(gpioPin[num], LOW);
-    digitalWrite(bankPin[num], HIGH);
+    digitalWrite(gpioPin[num], DEENERG);
+    digitalWrite(bankPin[num], ENERG);
   } 
 }
 
@@ -220,6 +237,11 @@ int batteryState(int batnum) {
   int rel = digitalRead(gpioPin[batnum]);
   int bank = digitalRead(bankPin[batnum]);
   int enabled = digitalRead(chargeDisable[batnum]);
+  #if defined(VER2)
+  enabled = !enabled; // New hardware has opposite state for energised
+  rel = !rel;
+  bank = !bank;
+  #endif
   if ( enabled ) {
     Serial.println("Charger is enabled, no point reading voltage");
     return(0); 
