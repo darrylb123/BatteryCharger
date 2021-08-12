@@ -53,7 +53,7 @@ const int RELAYS = 7;
 const int gpioPin[] = { 16, 14, 12, 13, 15, 0, 4 };
 const int chargeDisable[] = { 5, 5, 5, 5, 5, 5, 5 };
 const int bankPin[] = { 3, 3, 3, 3, 3, 3, 3 }; // Relay bank enable pin
-const float CALIBRATION = 0.015345269; //15k/1k ohm resistors. Analog in is 0-1V (12/782 measured)
+const float CALIBRATION = 0.01536643; //15k/1k ohm resistors. Analog in is 0-1V (12/782 measured)
 #else
 const int gpioPin[] = { 16, 5, 4, 0, 2, 14, 12 };
 const int chargeDisable[] = { 13, 13, 13, 13, 13, 13, 13 };
@@ -237,16 +237,12 @@ int batteryState(int batnum) {
   int rel = digitalRead(gpioPin[batnum]);
   int bank = digitalRead(bankPin[batnum]);
   int enabled = digitalRead(chargeDisable[batnum]);
-  #if defined(VER2)
-  enabled = !enabled; // New hardware has opposite state for energised
-  rel = !rel;
-  bank = !bank;
-  #endif
-  if ( enabled ) {
+
+  if ( enabled == ENERG ) {
     Serial.println("Charger is enabled, no point reading voltage");
     return(0); 
   }
-  if ( rel || ! bank ) {
+  if ( rel == ENERG || bank == DEENERG ) {
     char err[50];
     sprintf(err,"Error Relay %d not zero %d or bank one %d",batnum + 1, rel, bank);
     Serial.println(err);
