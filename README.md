@@ -1,17 +1,24 @@
 # BatteryCharger
-Multiplexed Battery Charger for maintaining up to 8 batteries from one charger
+Multiplexed Battery Charger for maintaining up to 7 batteries from one charger
 
-Based on Wemos D1 R1 ESP8266 or Wemos D1 R32 board connected to a bank of 8 relays or Wemos D1 R32 board connected to a bank of 16 relays.
+Based on the ESP12F\_Relay\_X8\_V1.1 integrated ESP8266 8 relay board.
 A connected charger cycles through each battery in turn. The analog input monitors the battery terminal voltage of the battery. 
 
-The charger is disconnected to measure the actual battery terminal volts by the last relay in each bank, therefore each module can manage 7 batteries. A load can be connected so that the battery is loaded while measuring the terminal voltage.
+The charger is disconnected to measure the actual battery terminal volts by the No 8 relay therefore each module can manage 7 batteries. A load can be connected so that the battery is loaded while measuring the terminal voltage.
 
 
-The Wemos operates as an AP with captive portal or connects to a local network. Connecting to the AP with a mobile phone displays the normal captive portal login page, in this case it simply displays the battery status.
+The board operates as an AP with captive portal or connects to a local network. Connecting to the AP with a mobile phone displays the normal captive portal login page, in this case it simply displays the battery status.
 Use the Expressif Android app to connect the wifi the local network.
 
 Electricals drawings by Qelectrotech.
 
-![alt text](2_7_way_multiplexed_battery_charger.png "7 way Wiring Diagram")
+![alt text](1_esp12f_relay_x8.png "7 Battery Wiring Diagram") 
 
-![alt text](1_14_way__multiplexed_battery_charger.png "7 way Wiring Diagram")
+## Construction
+	- Connect the 1k resistor  between the ADC and GND and the 15k resistor between ADC and one of the COM terminals. (see Photograph)
+	- Connect the 7-28V terminal to the NO1
+	- Connect the GND to the battery ground on the external terminal strip.
+	- Follow the schematic to jumper between the module terminal strip and the external terminal strip.
+
+![alt text](internal.jpg "Relay module wiring")
+[alt text](external.jpg "External strip wiring")
