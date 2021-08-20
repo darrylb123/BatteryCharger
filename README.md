@@ -21,4 +21,4 @@ Electricals drawings by Qelectrotech.
 	- Follow the schematic to jumper between the module terminal strip and the external terminal strip.
 
 ![alt text](internal.jpg "Relay module wiring")
-[alt text](external.jpg "External strip wiring")
+![alt text](external.jpg "External strip wiring")
