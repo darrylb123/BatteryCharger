@@ -65,7 +65,7 @@ Ticker minutes;
 const int RELAYS = 7;
 #if defined(VER2) 
 const int gpioPin[] = { 16, 14, 12, 13, 15, 0, 4 };
-const int chargeDisable[] = { 5, 5, 5, 5, 5, 5, 5 };
+const int chargeDisable =  5 ;
 const int bankPin[] = { 3, 3, 3, 3, 3, 3, 3 }; // Relay bank enable pin
 const float CALIBRATION = 0.01536643; //15k/1k ohm resistors. Analog in is 0-1V (12/782 measured)
 #else
@@ -82,7 +82,7 @@ const int sensorPin = A0;
 #elif defined(ESP32)
 const int RELAYS = 14; 
 const int gpioPin[] =       { 26, 25, 17, 16, 27, 14, 12, 26, 25, 17, 16, 27, 14, 12 };
-const int chargeDisable[] = { 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13 };
+const int chargeDisable = 13 ;
 const int bankPin[] =       {  5,  5,  5,  5,  5,  5,  5, 23, 23, 23, 23, 23, 23, 23 }; // Relay bank enable pin
 const float CALIBRATION = 0.004126132; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
@@ -115,10 +115,10 @@ void setup() {
   initialiseWebUI();
 
   // Set direction of IO
+  pinMode(chargeDisable, OUTPUT);
   for (int i = 0; i < RELAYS; i++) {
     pinMode(gpioPin[i], OUTPUT);
     pinMode(bankPin[i], OUTPUT);
-    pinMode(chargeDisable[i], OUTPUT);
     digitalWrite(gpioPin[i], ENERG);
     digitalWrite(bankPin[i], DEENERG); // The bank pin supplies 3.3V for the optocouplers supply. DEENERG disables the particular bank
   }
@@ -183,10 +183,11 @@ int scanAll(){
   // Set all Charged to off to allow reading voltages
   allCharged = 0;
   currentCharger = 0;
+  //Energise the charger relay
+  digitalWrite(chargeDisable, DEENERG);
   for (int i = 0; i < RELAYS; i++) {
     for (int i = 0; i < RELAYS; i++) {
       digitalWrite(gpioPin[i], ENERG);
-      digitalWrite(chargeDisable[i], ENERG);
       digitalWrite(bankPin[i], DEENERG);
     }
     j = millis();
@@ -196,7 +197,7 @@ int scanAll(){
     digitalWrite(bankPin[i], ENERG);
     delay(100); // Allow time to power the module
     digitalWrite(gpioPin[i], DEENERG);
-    digitalWrite(chargeDisable[i], DEENERG);
+    
     delay(100);
     j = millis();
     while(millis() < (j+500)){
@@ -213,9 +214,10 @@ int scanAll(){
   Serial.println(" ");
   for (int i = 0; i < RELAYS; i++) {
     digitalWrite(gpioPin[i], ENERG);
-    digitalWrite(chargeDisable[i], ENERG);
+    
     digitalWrite(bankPin[i], DEENERG);
   }
+  digitalWrite(chargeDisable, ENERG);
   batteriesCharged();
 }
 
@@ -250,7 +252,7 @@ int batteryState(int batnum) {
   
   int rel = digitalRead(gpioPin[batnum]);
   int bank = digitalRead(bankPin[batnum]);
-  int enabled = digitalRead(chargeDisable[batnum]);
+  int enabled = digitalRead(chargeDisable);
 
   if ( enabled == ENERG ) {
     Serial.println("Charger is enabled, no point reading voltage");

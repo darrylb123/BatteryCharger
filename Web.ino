@@ -68,6 +68,7 @@ void initialiseWebUI(){
   webServer.on("/postform/", handleForm);
   webServer.on("/rmfiles", rmfiles);
   webServer.on("/labels", labels);
+  webServer.on("/reboot", reboot);
   webServer.on("/editlabels", formPage);
   webServer.on("/serverIndex", HTTP_GET, []() {
     webServer.sendHeader("Connection", "close");
@@ -252,7 +253,7 @@ table, th, td {\
     sprintf(tempstr, "<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n", (TESTCYCLE - (runMinutes % TESTCYCLE)));
     strcat(responseHTML, tempstr);
   } 
-  strcat(responseHTML, "<A href=\"/editlabels\">Edit Battery Labels</A> <BR><A href=\"/serverIndex\">Update Firmware</A> </body></html>\n");
+  strcat(responseHTML, "<A href=\"/editlabels\">Edit Battery Labels</A> <BR><A href=\"/serverIndex\">Update Firmware</A> <BR><A href=\"/reboot\">Reboot Charger</A></body></html>\n");
   if (DEBUG)
     Serial.print(responseHTML);
   delay(100);// Serial.print(responseHTML);
@@ -320,6 +321,9 @@ void labels() {
     Serial.write(file.read());
   }
   file.close();
+}
+void reboot() {
+  ESP.restart();
 }
 
 int webLoop(){
