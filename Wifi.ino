@@ -55,7 +55,7 @@ void wifiStartup(){
   #elif defined(ESP8266)
   WiFi.hostname(sapString); // this sets a unique hostname for DHCP
   #endif
-  
+  delay(2000);
   WiFi.begin();
   #if defined(ESP32)
   WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED);

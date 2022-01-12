@@ -65,12 +65,12 @@ Ticker minutes;
 const int RELAYS = 7;
 #if defined(VER2) 
 const int gpioPin[] = { 16, 14, 12, 13, 15, 0, 4 };
-const int chargeDisable =  5 ;
+const int chargeEnable =  5 ;
 const int bankPin[] = { 3, 3, 3, 3, 3, 3, 3 }; // Relay bank enable pin
 const float CALIBRATION = 0.01536643; //15k/1k ohm resistors. Analog in is 0-1V (12/782 measured)
 #else
 const int gpioPin[] = { 16, 5, 4, 0, 2, 14, 12 };
-const int chargeDisable[] = { 13, 13, 13, 13, 13, 13, 13 };
+const int chargeEnable = 13;
 const int bankPin[] = { 15, 15, 15, 15, 15, 15, 15 }; // Relay bank enable pin
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
 #endif
@@ -82,7 +82,7 @@ const int sensorPin = A0;
 #elif defined(ESP32)
 const int RELAYS = 14; 
 const int gpioPin[] =       { 26, 25, 17, 16, 27, 14, 12, 26, 25, 17, 16, 27, 14, 12 };
-const int chargeDisable = 13 ;
+const int chargeEnable = 13 ;
 const int bankPin[] =       {  5,  5,  5,  5,  5,  5,  5, 23, 23, 23, 23, 23, 23, 23 }; // Relay bank enable pin
 const float CALIBRATION = 0.004126132; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
 const int sensorPin = 34;
@@ -115,7 +115,7 @@ void setup() {
   initialiseWebUI();
 
   // Set direction of IO
-  pinMode(chargeDisable, OUTPUT);
+  pinMode(chargeEnable, OUTPUT);
   for (int i = 0; i < RELAYS; i++) {
     pinMode(gpioPin[i], OUTPUT);
     pinMode(bankPin[i], OUTPUT);
@@ -184,7 +184,7 @@ int scanAll(){
   allCharged = 0;
   currentCharger = 0;
   //Energise the charger relay
-  digitalWrite(chargeDisable, DEENERG);
+  digitalWrite(chargeEnable, ENERG);
   for (int i = 0; i < RELAYS; i++) {
     for (int i = 0; i < RELAYS; i++) {
       digitalWrite(gpioPin[i], ENERG);
@@ -217,7 +217,6 @@ int scanAll(){
     
     digitalWrite(bankPin[i], DEENERG);
   }
-  digitalWrite(chargeDisable, ENERG);
   batteriesCharged();
 }
 
@@ -252,9 +251,9 @@ int batteryState(int batnum) {
   
   int rel = digitalRead(gpioPin[batnum]);
   int bank = digitalRead(bankPin[batnum]);
-  int enabled = digitalRead(chargeDisable);
+  int enabled = digitalRead(chargeEnable);
 
-  if ( enabled == ENERG ) {
+  if ( enabled == DEENERG ) {
     Serial.println("Charger is enabled, no point reading voltage");
     return(0); 
   }
@@ -289,7 +288,12 @@ void loop() {
     scanAll();
     lastHour = runHours;
   }
-  // delay(50); // Waste a little time 
+  // If Batteries need to be charged - Energise the Charger enable relay
+  if (!batteriesCharged()){
+    digitalWrite(chargeEnable, DEENERG);
+  } else {
+    digitalWrite(chargeEnable, ENERG);
+  }
 }
 
 void logbat () {
