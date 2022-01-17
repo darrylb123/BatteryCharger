@@ -104,6 +104,7 @@ int runHours = 0;
 int runDays = 0;
 char *responseHTML;
 String labelTXT[RELAYS];
+int forceCharge = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -122,11 +123,12 @@ void setup() {
     digitalWrite(gpioPin[i], ENERG);
     digitalWrite(bankPin[i], DEENERG); // The bank pin supplies 3.3V for the optocouplers supply. DEENERG disables the particular bank
   }
-  
+  currentCharger = 0;
+  forceCharge = 0;
   scanAll(); // Scan all Batteries on boot
   batteriesCharged(); // See if they are allCharged
   
-  currentCharger = 0;
+ 
   if (!allCharged) 
     pickBattery(currentCharger); //Start with the first battery
   lastMinutes = runMinutes;
@@ -167,6 +169,8 @@ void eachMinute (){
 
   if (currentCharger >= RELAYS ) { // At the end of a cycle check all the batteries to see if any need charging again
     currentCharger = 0;
+    // Reset force Charge flag
+    forceCharge = 0;
     scanAll(); 
   }
   // Check if all batteries are charged. pickBattery wont charge any if all charged
@@ -227,6 +231,9 @@ int batteriesCharged(){
     if (batteryConnected[i] && !batteryCharged[i]) {
       allCharged = 0;
     }
+  }
+  if (forceCharge) {
+    allCharged = 0;
   }
   return(allCharged);
 }

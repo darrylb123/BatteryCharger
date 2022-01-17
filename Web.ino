@@ -69,6 +69,7 @@ void initialiseWebUI(){
   webServer.on("/rmfiles", rmfiles);
   webServer.on("/labels", labels);
   webServer.on("/editlabels", formPage);
+  webServer.on("/forcecharge", forceChargeCycle);
   webServer.on("/serverIndex", HTTP_GET, []() {
     webServer.sendHeader("Connection", "close");
     webServer.send(200, "text/html", serverIndex);
@@ -248,11 +249,15 @@ table, th, td {\
     strcat(responseHTML, tempstr);
   }
   strcat(responseHTML, "</TABLE>");
+  if (forceCharge) {
+    sprintf(tempstr, "<H3>Charge Cycle Forced<h3>\n");
+    strcat(responseHTML, tempstr);
+  }
   if (allCharged) {
     sprintf(tempstr, "<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n", (TESTCYCLE - (runMinutes % TESTCYCLE)));
     strcat(responseHTML, tempstr);
   } 
-  strcat(responseHTML, "<A href=\"/editlabels\">Edit Battery Labels</A> <BR><A href=\"/serverIndex\">Update Firmware or Reboot</A> </body></html>\n");
+  strcat(responseHTML, "<A href=\"/forcecharge\">ForceChargeCycle</A> <BR><A href=\"/editlabels\">Edit Battery Labels</A> <BR><A href=\"/serverIndex\">Update Firmware or Reboot</A> </body></html>\n");
   if (DEBUG)
     Serial.print(responseHTML);
   delay(100);// Serial.print(responseHTML);
@@ -281,7 +286,11 @@ void handleForm() {
   }
 }
 
-
+// Set flag for force Charge
+void forceChargeCycle(){
+  forceCharge = 1;
+  webServer.send(200, "text/plain", "Press Back Button to return to list");
+}
 
 void writeFile() {
   char path[] = "/labels.txt";
