@@ -28,22 +28,17 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define DEENERG LOW
 #endif
 
-#if defined(SOFTAP)
+
 #include "DNSServer.h"                  // Patched lib
-// Capture DNS requests on port 53
+// Capture DNS requests on port 53 in SoftAP Mode
 IPAddress         apIP(10, 10, 10, 1);    // Private network for server
 DNSServer         dnsServer;              // Create the DNS object
 
-#endif
 
-#if defined(ESP8266)
+
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiType.h>
-#elif defined(ESP32)
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <WiFiAP.h>
-#endif
+
 
 
 // An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
@@ -53,16 +48,17 @@ const float fullyCharged = 11.9;
 const byte        DNS_PORT = 53;
 String inputString;
 int stringComplete;
-
+int needDNS;
 
 Ticker minutes;
 
 
 
-// Wemos D1R2 only supports 8 relays 
-// Wemos R32 supports 16 relays
-#if defined(ESP8266)
+
+
+
 const int RELAYS = 7;
+
 #if defined(VER2) 
 const int gpioPin[] = { 16, 14, 12, 13, 15, 0, 4 };
 const int chargeEnable =  5 ;
@@ -79,14 +75,7 @@ const int sensorPin = A0;
 
 
 
-#elif defined(ESP32)
-const int RELAYS = 14; 
-const int gpioPin[] =       { 26, 25, 17, 16, 27, 14, 12, 26, 25, 17, 16, 27, 14, 12 };
-const int chargeEnable = 13 ;
-const int bankPin[] =       {  5,  5,  5,  5,  5,  5,  5, 23, 23, 23, 23, 23, 23, 23 }; // Relay bank enable pin
-const float CALIBRATION = 0.004126132; // 8.2/2.2 ohm resistor divider (5V / 1/074V = 1128 of 4096 )
-const int sensorPin = 34;
-#endif
+
 
 const int SCAN = 1000; // Delay in ms between each battery when scanning 
 const int TESTCYCLE = 15; // Cycle time for testing batteries

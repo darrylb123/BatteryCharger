@@ -1,27 +1,19 @@
 
-#if defined(ESP8266)
+
 #include <ESP8266WebServer.h>
 #include <WiFiClient.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <FS.h>
 #include <LittleFS.h>
-#elif defined(ESP32)
-#include <WebServer.h>
-#include <LITTLEFS.h>
-#include <Update.h>
-#endif
-#if defined(ESP8266)
-ESP8266WebServer  webServer(80);          // HTTP server
+
 #define MYFS LittleFS
 #define FORMAT_LITTLEFS_IF_FAILED 
 
-#elif defined(ESP32)
-WebServer  webServer(80);
-#define MYFS LITTLEFS
-#define FORMAT_LITTLEFS_IF_FAILED true
 
-#endif
+ESP8266WebServer  webServer(80);          // HTTP server
+
+
 
 const char* serverIndex = 
 "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
@@ -70,11 +62,11 @@ void initialiseWebUI(){
   webServer.on("/labels", labels);
   webServer.on("/editlabels", formPage);
   webServer.on("/forcecharge", forceChargeCycle);
+  webServer.on("/connectAP", connectAP);
   webServer.on("/serverIndex", HTTP_GET, []() {
-    webServer.sendHeader("Connection", "close");
-    webServer.send(200, "text/html", serverIndex);
-  });
-  #if defined(ESP8266)
+  webServer.sendHeader("Connection", "close");
+  webServer.send(200, "text/html", serverIndex);
+
   webServer.on("/update", HTTP_POST, []() {
       webServer.sendHeader("Connection", "close");
       webServer.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
@@ -103,32 +95,8 @@ void initialiseWebUI(){
       }
       yield();
     });
-  #elif defined(ESP32)
-  webServer.on("/update", HTTP_POST, []() {
-    webServer.sendHeader("Connection", "close");
-    webServer.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-    ESP.restart();
-  }, []() {
-    HTTPUpload& upload = webServer.upload();
-    if (upload.status == UPLOAD_FILE_START) {
-      Serial.printf("Update: %s\n", upload.filename.c_str());
-      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
-        Update.printError(Serial);
-      }
-    } else if (upload.status == UPLOAD_FILE_WRITE) {
-      /* flashing firmware to ESP*/
-      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-        Update.printError(Serial);
-      }
-    } else if (upload.status == UPLOAD_FILE_END) {
-      if (Update.end(true)) { //true to set the size to the current progress
-        Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-      } else {
-        Update.printError(Serial);
-      }
-    }
+
   });
-  #endif
   webServer.onNotFound(handlePage);
   webServer.begin();
   
@@ -257,7 +225,7 @@ table, th, td {\
     sprintf(tempstr, "<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n", (TESTCYCLE - (runMinutes % TESTCYCLE)));
     strcat(responseHTML, tempstr);
   } 
-  strcat(responseHTML, "<A href=\"/forcecharge\">ForceChargeCycle</A> <BR><A href=\"/editlabels\">Edit Battery Labels</A> <BR><A href=\"/serverIndex\">Update Firmware or Reboot</A> </body></html>\n");
+  strcat(responseHTML, "<A href=\"/forcecharge\">ForceChargeCycle</A> <BR><A href=\"/editlabels\">Edit Battery Labels</A> <BR><A href=\"/connectAP\">Connect to Wifi Network using ESP Touch App</A><BR><A href=\"/serverIndex\">Update Firmware or Reboot</A> </body></html>\n");
   if (DEBUG)
     Serial.print(responseHTML);
   delay(100);// Serial.print(responseHTML);
@@ -307,6 +275,17 @@ void writeFile() {
   }
   file.close();
 }
+
+void connectAP(){
+  
+  webServer.send(200, "text/plain", "Open ESPTouch: Smartconfig App to connect to Wifi Network"); 
+  
+  delay(2000);
+  
+  mySmartConfig();
+  
+}
+
 void rmfiles(){
   if (MYFS.remove("/labels.txt")) {
     Serial.println("/labels.txt removed");
