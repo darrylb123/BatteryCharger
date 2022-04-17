@@ -103,7 +103,9 @@ void setup() {
   
   wifiStartup();
   initialiseWebUI();
-
+  pinMode(chargeEnable, INPUT);
+  Serial.print("chargeEnable Pin reads: ");
+  Serial.println(digitalRead(chargeEnable));
   // Set direction of IO
   pinMode(chargeEnable, OUTPUT);
   for (int i = 0; i < RELAYS; i++) {
