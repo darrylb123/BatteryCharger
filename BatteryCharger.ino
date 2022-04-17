@@ -65,8 +65,10 @@ const int chargeEnable =  5 ;
 const int bankPin[] = { 3, 3, 3, 3, 3, 3, 3 }; // Relay bank enable pin
 const float CALIBRATION = 0.01536643; //15k/1k ohm resistors. Analog in is 0-1V (12/782 measured)
 #else
-const int gpioPin[] = { 16, 5, 4, 0, 2, 14, 12 };
-const int chargeEnable = 13;
+const int gpioPin[] = { 16, 5, 4, 14 ,12, 13, 0};
+const int chargeEnable = 2;
+// const int gpioPin[] = { 16, 5, 4, 0, 2, 14, 12 };
+// const int chargeEnable = 13;
 const int bankPin[] = { 15, 15, 15, 15, 15, 15, 15 }; // Relay bank enable pin
 const float CALIBRATION = 0.014273256; // 8.2/2.2 ohm resistor divider (3.313 / .694V = 234 of 1024 )
 #endif
