@@ -63,7 +63,7 @@ const int RELAYS = 7;
 const int gpioPin[] = { 16, 14, 12, 13, 15, 0, 4 };
 const int chargeEnable =  5 ;
 const int bankPin[] = { 3, 3, 3, 3, 3, 3, 3 }; // Relay bank enable pin
-const float CALIBRATION = 0.01536643; //15k/1k ohm resistors. Analog in is 0-1V (12/782 measured)
+const float CALIBRATION = 0.0157521; //15k/1k ohm resistors. Analog in is 0-1V (12/782 measured)
 #else
 const int gpioPin[] = { 16, 5, 4, 14 ,12, 13, 0};
 const int chargeEnable = 2;
@@ -96,6 +96,9 @@ int runDays = 0;
 char *responseHTML;
 String labelTXT[RELAYS];
 int forceCharge = 0;
+int forceScan = 0;
+float calConst;
+
 
 void setup() {
   Serial.begin(115200);
@@ -105,6 +108,9 @@ void setup() {
   
   wifiStartup();
   initialiseWebUI();
+  
+  calConst = calConstant();
+  
   pinMode(chargeEnable, INPUT);
   Serial.print("chargeEnable Pin reads: ");
   Serial.println(digitalRead(chargeEnable));
@@ -118,6 +124,7 @@ void setup() {
   }
   currentCharger = 0;
   forceCharge = 0;
+  forceScan = 0;
   scanAll(); // Scan all Batteries on boot
   batteriesCharged(); // See if they are allCharged
   
@@ -264,7 +271,7 @@ int batteryState(int batnum) {
     return(0);
   }
   
-  batVolts[batnum] = analogRead(sensorPin) * CALIBRATION;
+  batVolts[batnum] = analogRead(sensorPin) * calConst;
   if (batVolts[batnum] > fullyCharged)
       batteryCharged[batnum] = 1;
   else
@@ -282,7 +289,10 @@ int batteryState(int batnum) {
 void loop() {
   wifiLoop();
   webLoop();
-  
+  if (forceScan){
+    scanAll();
+    forceScan = 0;
+  }
   // Read the battery voltage each hour if fully charged
   if ((runHours > lastHour) && batteriesCharged()) {
     scanAll();
@@ -302,7 +312,7 @@ void logbat () {
   String theTime = "Run Time: ";
   theTime = theTime + " " + runMinutes + " minutes " + runHours + " hours " + runDays + " days ";
   int num = currentCharger ;
-  bat = theTime + " " + bat + num + " " + t + " " + String(t * CALIBRATION, 2);
+  bat = theTime + " " + bat + num + " " + t + " " + String(t * calConst, 2);
   if (allCharged)
     bat = bat + " All Charged";
   Serial.println(bat);

@@ -62,6 +62,7 @@ void initialiseWebUI(){
   webServer.on("/labels", labels);
   webServer.on("/editlabels", formPage);
   webServer.on("/forcecharge", forceChargeCycle);
+  webServer.on("/forcescan", forceScanCycle);
   webServer.on("/connectAP", connectAP);
   webServer.on("/serverIndex", HTTP_GET, []() {
   webServer.sendHeader("Connection", "close");
@@ -166,6 +167,8 @@ table, th, td {\
     strcat(responseHTML, tempstr);
   }
   strcat(responseHTML, "</TABLE>");
+  sprintf(tempstr, "Calibration Constant: <input type=\"text\" name=\"calConst\" value=\"%5f\"><BR>\n",calConst);
+  strcat(responseHTML, tempstr);
   strcat(responseHTML, "<input type=\"submit\" value=\"Submit\">\
     </form>\
     <A href=\"/\">Return to Battery Display</A>\
@@ -225,7 +228,7 @@ table, th, td {\
     sprintf(tempstr, "<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n", (TESTCYCLE - (runMinutes % TESTCYCLE)));
     strcat(responseHTML, tempstr);
   } 
-  strcat(responseHTML, "<A href=\"/forcecharge\">ForceChargeCycle</A> <BR><A href=\"/editlabels\">Edit Battery Labels</A> <BR><A href=\"/connectAP\">Connect to Wifi Network using ESP Touch App</A><BR><A href=\"/serverIndex\">Update Firmware or Reboot</A> </body></html>\n");
+  strcat(responseHTML, "<A href=\"/forcescan\">Scan Batteries</A> <BR> <A href=\"/forcecharge\">Force Charge Cycle</A> <BR><A href=\"/editlabels\">Edit Battery Labels</A> <BR><A href=\"/connectAP\">Connect to Wifi Network using ESP Touch App</A><BR><A href=\"/serverIndex\">Update Firmware or Reboot</A> </body></html>\n");
   if (DEBUG)
     Serial.print(responseHTML);
   delay(100);// Serial.print(responseHTML);
@@ -241,11 +244,19 @@ void handleForm() {
     String message = "POST form was:\n";
     for (uint8_t i = 0; i < webServer.args(); i++) {
       String name = webServer.argName(i);
-      long whichlabel = name.toInt() -1;
-      Serial.println(name + "" + whichlabel);
-      if (whichlabel > -1 && whichlabel < RELAYS)
-        labelTXT[whichlabel] = webServer.arg(i);
-      message += " " + webServer.argName(i) + ": " + webServer.arg(i) + "\n";
+      if (name == "calConst") {
+        Serial.print("Setting Calibration Constant to: ");
+        String val = webServer.arg(i);
+        calConst = val.toFloat();
+        Serial.println(calConst,6);
+        writeCalFile();
+      } else {
+        long whichlabel = name.toInt() -1;
+        Serial.println(name + "" + whichlabel);
+        if (whichlabel > -1 && whichlabel < RELAYS)
+          labelTXT[whichlabel] = webServer.arg(i);
+        message += " " + webServer.argName(i) + ": " + webServer.arg(i) + "\n";
+      }
     }
     Serial.print(message);
     
@@ -257,6 +268,12 @@ void handleForm() {
 // Set flag for force Charge
 void forceChargeCycle(){
   forceCharge = 1;
+  webServer.send(200, "text/plain", "Press Back Button to return to list");
+}
+
+//Force a scan cycle
+void forceScanCycle() {
+  forceScan = 1;
   webServer.send(200, "text/plain", "Press Back Button to return to list");
 }
 
@@ -273,7 +290,22 @@ void writeFile() {
     if (!file.println( labelTXT[i] ))
       Serial.println("Write failed");
   }
-  file.close();
+
+}
+
+void writeCalFile() {
+  char path[] = "/cal.txt";
+  Serial.printf("Writing file: %s\n",path);
+
+  File file = MYFS.open(path, "w");
+  if (!file) {
+    Serial.println("Failed to open file for writing");
+    return;
+  }
+  
+  if(!file.println( calConst, 6 ))
+    Serial.println("Write failed");
+
 }
 
 void connectAP(){
@@ -310,6 +342,21 @@ void labels() {
   file.close();
 }
 
+// Retrieve Calibration constant from file
+float calConstant(){
+  float f = CALIBRATION;
+  if (MYFS.exists("/cal.txt")) {
+    int lcount = 0;
+    char buffer[50];
+    File labelf = MYFS.open("/cal.txt", "r");
+    int l = labelf.readBytesUntil('\n', buffer, sizeof(buffer));
+    f = atof(buffer);
+  }
+  Serial.print("Calibration: ");
+  Serial.println(f,5);
+  return f;
+
+}
 
 int webLoop(){
     webServer.handleClient();
