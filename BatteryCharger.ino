@@ -177,7 +177,7 @@ void eachMinute (){
   pickBattery(currentCharger);
 }
 
-int scanAll(){
+void scanAll(){
   int j;
   // scan all the batteries for voltage
   // Disable the charger to read actual battery volts
@@ -238,7 +238,7 @@ int batteriesCharged(){
   return(allCharged);
 }
 // Change the relays, either to the next relay or scan all for voltages
-int pickBattery(int num) {
+void pickBattery(int num) {
   for (int i = 0; i < RELAYS; i++) {
     digitalWrite(gpioPin[i], ENERG);
     digitalWrite(bankPin[i], DEENERG);

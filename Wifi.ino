@@ -39,7 +39,7 @@ void wifiStartup(){
 }
 
 // Configure wifi using ESP Smartconfig app on phone
-int mySmartConfig() {
+void mySmartConfig() {
   // Wipe current credentials
   WiFi.disconnect(true); // deletes the wifi credentials
   
@@ -72,7 +72,7 @@ int mySmartConfig() {
 
 
 
-int wifiLoop(){
+void wifiLoop(){
   if (needDNS) {
     dnsServer.processNextRequest();
   }

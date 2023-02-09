@@ -358,6 +358,6 @@ float calConstant(){
 
 }
 
-int webLoop(){
+void webLoop(){
     webServer.handleClient();
 }
