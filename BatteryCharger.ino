@@ -40,7 +40,19 @@ DNSServer         dnsServer;              // Create the DNS object
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiType.h>
 
+const int RELAYS = 7;
 
+struct Config {
+  String mqttBroker;
+  int mqttPort;
+  String mqttUser;
+  String mqttPasswd;
+  String mqttTopic;
+  float calConst;
+  String labelTXT[RELAYS];
+};
+
+Config config;    // <- global configuration object
 
 // An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
 // Volts                     0, 1,  2,  3,  4,  5,  6,  7,  8,    9,    10,   11,   12, 13, 14, 15, 16
@@ -58,7 +70,7 @@ Ticker minutes;
 
 
 
-const int RELAYS = 7;
+
 
 #if defined(VER2) 
 const int gpioPin[] = { 16, 14, 12, 13, 15, 0, 4 };
@@ -83,9 +95,6 @@ const int sensorPin = A0;
 const int SCAN = 1000; // Delay in ms between each battery when scanning 
 const int TESTCYCLE = 15; // Cycle time for testing batteries
 char sapString[30]; // SSID and mqtt name unique by reading chip ID
-#if defined(NEEDMQTT)
-char *mqtt_broker;
-#endif
 float batVolts[RELAYS];
 int batteryCharged[RELAYS];
 int batteryConnected[RELAYS];
@@ -98,10 +107,9 @@ int runMinutes = 0;
 int runHours = 0;
 int runDays = 0;
 char *responseHTML;
-String labelTXT[RELAYS];
 int forceCharge = 0;
 int forceScan = 0;
-float calConst;
+
 
 
 void setup() {
@@ -109,13 +117,12 @@ void setup() {
   // Start Minute Ticker
   // Ticker is where all the action happens
   minutes.attach(60, eachMinute);
-  
+
   wifiStartup();
+  configSetup();
   initialiseWebUI();
   
-  
-  calConst = calConstant();
-  mqttBroker();
+
   
   pinMode(chargeEnable, INPUT);
   Serial.print("chargeEnable Pin reads: ");
@@ -282,7 +289,7 @@ int batteryState(int batnum) {
     return(0);
   }
   
-  batVolts[batnum] = analogRead(sensorPin) * calConst;
+  batVolts[batnum] = analogRead(sensorPin) * config.calConst;
   if (batVolts[batnum] > fullyCharged)
       batteryCharged[batnum] = 1;
   else
@@ -323,7 +330,7 @@ void logbat () {
   String theTime = "Run Time: ";
   theTime = theTime + " " + runMinutes + " minutes " + runHours + " hours " + runDays + " days ";
   int num = currentCharger ;
-  bat = theTime + " " + bat + num + " " + t + " " + String(t * calConst, 2);
+  bat = theTime + " " + bat + num + " " + t + " " + String(t * config.calConst, 2);
   if (allCharged)
     bat = bat + " All Charged";
   Serial.println(bat);

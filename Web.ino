@@ -55,11 +55,10 @@ const char* serverIndex =
 // Various functions to build the web pages
 void initialiseWebUI(){
   // Allocate web page memory
-  responseHTML = (char *)malloc(15000);
+  responseHTML = (char *)malloc(20000);
   webServer.on("/", handlePage);
   webServer.on("/postform/", handleForm);
   webServer.on("/rmfiles", rmfiles);
-  webServer.on("/labels", labels);
   webServer.on("/editlabels", formPage);
   webServer.on("/forcecharge", forceChargeCycle);
   webServer.on("/forcescan", forceScanCycle);
@@ -100,43 +99,11 @@ void initialiseWebUI(){
   });
   webServer.onNotFound(handlePage);
   webServer.begin();
-  
-  // Initialise the label arrays
-  for ( int i = 0; i < RELAYS; i++ ) {
-    int j = i+1;
-    labelTXT[i] = "Label " ;
-    labelTXT[i] = labelTXT[i] + j;
-  }
-  // Create the filesystem 
-  // LittleFS.format();
-  Serial.println("Mount LittleFS");
- // MYFS.format();
-  if (!MYFS.begin(FORMAT_LITTLEFS_IF_FAILED)) {
-    Serial.println("LittleFS mount failed");
-    return;
-  }
 
-
-  // Read the labels file and  write to label array
-  // else initialise the labels file 
-  if (MYFS.exists("/labels.txt")) {
-    int lcount = 0;
-    char buffer[50];
-    File labelf = MYFS.open("/labels.txt", "r");
-    while (labelf.available()) {
-      int l = labelf.readBytesUntil('\n', buffer, sizeof(buffer));
-      buffer[l] = 0;
-      labelTXT[lcount++] = buffer;
-      Serial.println(buffer);
-      if(lcount >= RELAYS) break;
-    }
-  } else {
-    writeFile();   
-  }
 }
 // Label form page
 void formPage () {
-  char tempstr[512];
+  char tempstr[1024];
 
   strcpy(responseHTML, "<!DOCTYPE html><html><head>\
                       <title>Battery Charger</title></head><body>\
@@ -151,28 +118,36 @@ table, th, td {\
   border: 1px solid black;\
 }\
 </style>\
-<H1> Battery Charger Labels</H1>\
+<H1> Battery Charger Configuration</H1>\
 <form method=\"post\" enctype=\"application/x-www-form-urlencoded\" action=\"/postform/\">");
 
-  sprintf(tempstr, "<H3>Labels for each battery</H3>\n");
-  strcat(responseHTML, tempstr);
 
-  strcat(responseHTML, "<TABLE><TR><TH>Battery</TH><TH>Label</TH>\n");
+  strcat(responseHTML, "<TABLE><TR><TH>Configuration</TH><TH>Setting</TH>\n");
 
   for (int i = 0; i < RELAYS; i++) {
-    char tmplabel[50];
-    labelTXT[i].toCharArray(tmplabel,sizeof(tmplabel));
-    sprintf(tempstr, "<TR><TD> %d </TD><TD><input type=\"text\" name=\"%d\" value=\"%s\"> </TD><TR>\n",
-              i + 1,i + 1,tmplabel);
+    sprintf(tempstr, "<TR><TD>Battery %d Label </TD><TD><input type=\"text\" name=\"%d\" value=\"%s\"> </TD><TR>\n",
+              i + 1,i + 1,config.labelTXT[i].c_str());
     strcat(responseHTML, tempstr);
   }
-  strcat(responseHTML, "</TABLE>");
-  sprintf(tempstr, "Calibration Constant: <input type=\"text\" name=\"calConst\" value=\"%5f\"><BR>\n",calConst);
+
+
+  sprintf(tempstr, "<TR><TD>Calibration Constant:</TD><TD> <input type=\"text\" name=\"config.calConst\" value=\"%5f\"></TD><TR>\n",config.calConst);
   strcat(responseHTML, tempstr);
+
 #if defined(NEEDMQTT)
-  sprintf(tempstr, "MQTT Broker Hostname or IP Address : <input type=\"text\" name=\"mqttBroker\" value=\"%s\"><BR>\n",mqtt_broker);
+  sprintf(tempstr, "<TR><TD>MQTT Broker Hostname or IP Address :</TD><TD> <input type=\"text\" name=\"mqttBroker\" value=\"%s\"></TD><TR>\n\n",config.mqttBroker.c_str());
   strcat(responseHTML, tempstr);
+  sprintf(tempstr, "<TR><TD>MQTT Broker Port : </TD><TD><input type=\"text\" name=\"mqttPort\" value=\"%d\"></TD><TR>\n\n",config.mqttPort);
+  strcat(responseHTML, tempstr);
+  sprintf(tempstr, "<TR><TD>MQTT Broker User :</TD><TD> <input type=\"text\" name=\"mqttUser\" value=\"%s\"></TD><TR>\n\n",config.mqttUser.c_str());
+  strcat(responseHTML, tempstr);
+  sprintf(tempstr, "<TR><TD>MQTT Broker Password :</TD><TD> <input type=\"text\" name=\"mqttPasswd\" value=\"%s\"></TD><TR>\n\n",config.mqttPasswd.c_str());
+  strcat(responseHTML, tempstr);
+  sprintf(tempstr, "<TR><TD>MQTT Topic :</TD><TD> <input type=\"text\" name=\"mqttTopic\" value=\"%s\"></TD><TR>\n\n",config.mqttTopic.c_str());
+  strcat(responseHTML, tempstr);
+
 #endif
+  strcat(responseHTML, "</TABLE>");
   strcat(responseHTML, "<input type=\"submit\" value=\"Submit\">\
     </form>\
     <A href=\"/\">Return to Battery Display</A>\
@@ -211,15 +186,13 @@ table, th, td {\
 
   int minutes = CHARGEMINUTES[(int)batVolts[currentCharger]] - ( runMinutes - lastMinutes ) ; // Calculate charging time on this battery
   for (int i = 0; i < RELAYS; i++) {
-    char tmplabel[50];
-    labelTXT[i].toCharArray(tmplabel,sizeof(tmplabel));
     if ( i == currentCharger && !allCharged) {
       sprintf(tempstr, "<TR><TD style=\"background-color:Tomato;\"> %d (%s)</TD><TD> %5.2f </TD> <TD> %d ( %d ) </TD><TD> %d </TD><TD> %d </TD><TR>\n",
-              i + 1, tmplabel  , batVolts[i], CHARGEMINUTES[(int)batVolts[i]], minutes, batteryCharged[i], batteryConnected[i]);
+              i + 1, config.labelTXT[i].c_str()  , batVolts[i], CHARGEMINUTES[(int)batVolts[i]], minutes, batteryCharged[i], batteryConnected[i]);
     } else {
       
       sprintf(tempstr, "<TR><TD> %d (%s) </TD><TD> %5.2f </TD> <TD> %d  </TD><TD> %d </TD><TD> %d </TD><TR>\n",
-              i + 1, tmplabel  ,batVolts[i], CHARGEMINUTES[(int)batVolts[i]], batteryCharged[i], batteryConnected[i]);
+              i + 1, config.labelTXT[i].c_str()  ,batVolts[i], CHARGEMINUTES[(int)batVolts[i]], batteryCharged[i], batteryConnected[i]);
     }
     strcat(responseHTML, tempstr);
   }
@@ -248,31 +221,37 @@ void handleForm() {
     String message = "POST form was:\n";
     for (uint8_t i = 0; i < webServer.args(); i++) {
       String name = webServer.argName(i);
-      if (name == "calConst") {
-        Serial.print("Setting Calibration Constant to: ");
+      if (name == "config.calConst") {
         String val = webServer.arg(i);
-        calConst = val.toFloat();
-        Serial.println(calConst,6);
-        writeCalFile();
+        config.calConst = val.toFloat();
       } else if (name == "mqttBroker") {
-        Serial.print("Setting MQTT Broker hostname to: ");
+        config.mqttBroker = webServer.arg(i);
+        config.mqttBroker.trim();
+      } else if (name == "mqttPort") {
         String val = webServer.arg(i);
-        Serial.println(val);
-        mqtt_broker = (char *)malloc(val.length()+10);
-        val.toCharArray(mqtt_broker,val.length()+1);
-        Serial.println(mqtt_broker);
-        writeBrokerFile();
+        config.mqttPort = val.toInt();   
+      } else if (name == "mqttUser") {
+        config.mqttUser = webServer.arg(i);
+        config.mqttUser.trim();
+      } else if (name == "mqttPasswd") {
+        config.mqttPasswd = webServer.arg(i);
+        config.mqttPasswd.trim();
+      } else if (name == "mqttTopic") {
+        config.mqttTopic = webServer.arg(i);
+        config.mqttTopic.trim();
       } else {
         long whichlabel = name.toInt() -1;
         Serial.println(name + "" + whichlabel);
         if (whichlabel > -1 && whichlabel < RELAYS)
-          labelTXT[whichlabel] = webServer.arg(i);
+          config.labelTXT[whichlabel] = webServer.arg(i);
+          config.labelTXT[whichlabel].trim();
         message += " " + webServer.argName(i) + ": " + webServer.arg(i) + "\n";
       }
     }
-    Serial.print(message);
+    // Serial.print(message);
     
-    writeFile();
+    saveConfiguration(confFile,config);
+    printFile(confFile);
     formPage();
   }
 }
@@ -289,53 +268,6 @@ void forceScanCycle() {
   webServer.send(200, "text/plain", "Press Back Button to return to list");
 }
 
-void writeFile() {
-  char path[] = "/labels.txt";
-  Serial.printf("Writing file: %s\n",path);
-
-  File file = MYFS.open(path, "w");
-  if (!file) {
-    Serial.println("Failed to open file for writing");
-    return;
-  }
-  for ( int i = 0; i < RELAYS; i++ ) {
-    if (!file.println( labelTXT[i] ))
-      Serial.println("Write failed");
-  }
-
-}
-
-void writeCalFile() {
-  char path[] = "/cal.txt";
-  Serial.printf("Writing file: %s\n",path);
-
-  File file = MYFS.open(path, "w");
-  if (!file) {
-    Serial.println("Failed to open file for writing");
-    return;
-  }
-  
-  if(!file.println( calConst, 6 ))
-    Serial.println("Write failed");
-
-}
-
-void writeBrokerFile() {
-  char path[] = "/mqtt.txt";
-  Serial.printf("Writing file: %s\n",path);
-
-  File file = MYFS.open(path, "w");
-  if (!file) {
-    Serial.println("Failed to open file for writing");
-    return;
-  }
-  int len = strlen(mqtt_broker);
-  if (len > 0 ){
-  if(!file.println(mqtt_broker))
-    Serial.println("Write failed");
-  }
-
-}
 
 void connectAP(){
   
@@ -347,64 +279,9 @@ void connectAP(){
   
 }
 
-void rmfiles(){
-  if (MYFS.remove("/labels.txt")) {
-    Serial.println("/labels.txt removed");
-  } else {
-    Serial.println("/labels.txt removal failed");
-  }
-}
 
-void labels() {
-  Serial.println("Reading file: /labels.txt");
 
-  File file = MYFS.open("/labels.txt", "r");
-  if (!file) {
-    Serial.println("Failed to open file for reading");
-    return;
-  }
 
-  Serial.print("Read from file: ");
-  while (file.available()) {
-    Serial.write(file.read());
-  }
-  file.close();
-}
-
-// Retrieve Calibration constant from file
-float calConstant(){
-  float f = CALIBRATION;
-  if (MYFS.exists("/cal.txt")) {
-    int lcount = 0;
-    char buffer[50];
-    File labelf = MYFS.open("/cal.txt", "r");
-    int l = labelf.readBytesUntil('\n', buffer, sizeof(buffer));
-    f = atof(buffer);
-  }
-  Serial.print("Calibration: ");
-  Serial.println(f,5);
-  return f;
-
-}
-
-// Retrieve MQTT Broker name from file
-void mqttBroker(){
-  float f = CALIBRATION;
-  if (MYFS.exists("/mqtt.txt")) {
-    int lcount = 0;
-    char buffer[100];
-    File labelf = MYFS.open("/mqtt.txt", "r");
-    int l = labelf.readBytesUntil('\n', buffer, sizeof(buffer));
-    buffer[l]='\0';
-    mqtt_broker = (char *)malloc(l+10);
-    
-    strcpy(mqtt_broker,buffer);
-  } else {
-    mqtt_broker = (char *)malloc(2);
-    sprintf(mqtt_broker,"");
-  }
-
-}
 
 
 
