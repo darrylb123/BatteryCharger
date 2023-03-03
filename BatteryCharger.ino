@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // #define SOFTAP 1
 #define VER2 1
 #define DEBUG 0
+#define NEEDMQTT 1
 #include <stdio.h>
 #include <Ticker.h>
 
@@ -82,6 +83,9 @@ const int sensorPin = A0;
 const int SCAN = 1000; // Delay in ms between each battery when scanning 
 const int TESTCYCLE = 15; // Cycle time for testing batteries
 char sapString[30]; // SSID and mqtt name unique by reading chip ID
+#if defined(NEEDMQTT)
+char *mqtt_broker;
+#endif
 float batVolts[RELAYS];
 int batteryCharged[RELAYS];
 int batteryConnected[RELAYS];
@@ -109,7 +113,9 @@ void setup() {
   wifiStartup();
   initialiseWebUI();
   
+  
   calConst = calConstant();
+  mqttBroker();
   
   pinMode(chargeEnable, INPUT);
   Serial.print("chargeEnable Pin reads: ");
@@ -215,13 +221,18 @@ void scanAll(){
     Serial.print(batteryCharged[i]);
     Serial.print(batteryConnected[i]);
   }
+
   Serial.println(" ");
+#if defined(NEEDMQTT)
+  publishData();
+#endif
   for (int i = 0; i < RELAYS; i++) {
     digitalWrite(gpioPin[i], ENERG);
     
     digitalWrite(bankPin[i], DEENERG);
   }
   batteriesCharged();
+
 }
 
 // Check if all the batteries are charged

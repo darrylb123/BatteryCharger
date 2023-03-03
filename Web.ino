@@ -169,6 +169,10 @@ table, th, td {\
   strcat(responseHTML, "</TABLE>");
   sprintf(tempstr, "Calibration Constant: <input type=\"text\" name=\"calConst\" value=\"%5f\"><BR>\n",calConst);
   strcat(responseHTML, tempstr);
+#if defined(NEEDMQTT)
+  sprintf(tempstr, "MQTT Broker Hostname or IP Address : <input type=\"text\" name=\"mqttBroker\" value=\"%s\"><BR>\n",mqtt_broker);
+  strcat(responseHTML, tempstr);
+#endif
   strcat(responseHTML, "<input type=\"submit\" value=\"Submit\">\
     </form>\
     <A href=\"/\">Return to Battery Display</A>\
@@ -184,7 +188,7 @@ table, th, td {\
 void handlePage () {
   char tempstr[1024];
 
-  strcpy(responseHTML, "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"20\">\
+  sprintf(responseHTML, "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"20\">\
                       <title>Battery Charger</title></head><body>\
                       <style>\
                       table {\
@@ -197,8 +201,8 @@ table, th, td {\
   border: 1px solid black;\
 }\
 </style>\
-<H1> Battery Charger </H1>\
-");
+<H1> %s </H1>\
+",sapString);
 
   sprintf(tempstr, "<H3>Time since boot %d minutes %d hours %d days</H3>\n", runMinutes, runHours/(60/TESTCYCLE), runDays);
   strcat(responseHTML, tempstr);
@@ -250,6 +254,14 @@ void handleForm() {
         calConst = val.toFloat();
         Serial.println(calConst,6);
         writeCalFile();
+      } else if (name == "mqttBroker") {
+        Serial.print("Setting MQTT Broker hostname to: ");
+        String val = webServer.arg(i);
+        Serial.println(val);
+        mqtt_broker = (char *)malloc(val.length()+10);
+        val.toCharArray(mqtt_broker,val.length()+1);
+        Serial.println(mqtt_broker);
+        writeBrokerFile();
       } else {
         long whichlabel = name.toInt() -1;
         Serial.println(name + "" + whichlabel);
@@ -308,6 +320,23 @@ void writeCalFile() {
 
 }
 
+void writeBrokerFile() {
+  char path[] = "/mqtt.txt";
+  Serial.printf("Writing file: %s\n",path);
+
+  File file = MYFS.open(path, "w");
+  if (!file) {
+    Serial.println("Failed to open file for writing");
+    return;
+  }
+  int len = strlen(mqtt_broker);
+  if (len > 0 ){
+  if(!file.println(mqtt_broker))
+    Serial.println("Write failed");
+  }
+
+}
+
 void connectAP(){
   
   webServer.send(200, "text/plain", "Open ESPTouch: Smartconfig App to connect to Wifi Network"); 
@@ -357,6 +386,27 @@ float calConstant(){
   return f;
 
 }
+
+// Retrieve MQTT Broker name from file
+void mqttBroker(){
+  float f = CALIBRATION;
+  if (MYFS.exists("/mqtt.txt")) {
+    int lcount = 0;
+    char buffer[100];
+    File labelf = MYFS.open("/mqtt.txt", "r");
+    int l = labelf.readBytesUntil('\n', buffer, sizeof(buffer));
+    buffer[l]='\0';
+    mqtt_broker = (char *)malloc(l+10);
+    
+    strcpy(mqtt_broker,buffer);
+  } else {
+    mqtt_broker = (char *)malloc(2);
+    sprintf(mqtt_broker,"");
+  }
+
+}
+
+
 
 void webLoop(){
     webServer.handleClient();

@@ -9,6 +9,7 @@ void wifiStartup(){
   // Attempt to connecty to the AP stored on board, if not, start in SoftAP mode
   WiFi.mode(WIFI_STA);
   delay(2000);
+  WiFi.hostname(sapString);
   WiFi.begin();
   delay(5000);
   
