@@ -131,7 +131,7 @@ table, th, td {\
   }
 
 
-  sprintf(tempstr, "<TR><TD>Calibration Constant:</TD><TD> <input type=\"text\" name=\"config.calConst\" value=\"%5f\"></TD><TR>\n",config.calConst);
+  sprintf(tempstr, "<TR><TD>Calibration Constant(%5f):</TD><TD> Enter Displayed Voltage: <input type=\"text\" name=\"Displayed\" value=\"\"> Enter Expected Voltage: <input type=\"text\" name=\"Expected\" value=\"\"></TD><TR>\n",config.calConst);
   strcat(responseHTML, tempstr);
 
 #if defined(NEEDMQTT)
@@ -148,10 +148,12 @@ table, th, td {\
 
 #endif
   strcat(responseHTML, "</TABLE>");
-  strcat(responseHTML, "<input type=\"submit\" value=\"Submit\">\
-    </form>\
-    <A href=\"/\">Return to Battery Display</A>\
-    </body></html>\n");
+  strcat(responseHTML, "<input type=\"submit\" value=\"Submit\"></form>");
+  strcat(responseHTML, "The Calibration Constant is the factor the Analog to Digital converter value is multiplied with to produce the displayed battery voltage.\
+  This can be wrong due to variations in the resistors used on each board.\
+  To correct the calibration, note the displayed battery volts on a battery and the measured voltage on the same \
+  battery using a voltmeter and enter into the fields above.<br>\n");
+  strcat(responseHTML, "<A href=\"/\">Return to Battery Display</A> </body></html>\n");
   if (DEBUG)
     Serial.print(responseHTML);
   delay(100);// Serial.print(responseHTML);
@@ -215,15 +217,21 @@ table, th, td {\
 
 // Function to extract the new label text and update the labels array. The labels are then written to the labels.txt file
 void handleForm() {
+  float voltsExpected = -1;
+  float voltsDisplayed = -1;
+  
   if (webServer.method() != HTTP_POST) {
     webServer.send(405, "text/plain", "Method Not Allowed");
   } else {
     String message = "POST form was:\n";
     for (uint8_t i = 0; i < webServer.args(); i++) {
       String name = webServer.argName(i);
-      if (name == "config.calConst") {
+      if (name == "Expected") {
         String val = webServer.arg(i);
-        config.calConst = val.toFloat();
+        voltsExpected  = val.toFloat();
+      } else if (name == "Displayed") {
+        String val = webServer.arg(i);
+        voltsDisplayed  = val.toFloat();
       } else if (name == "mqttBroker") {
         config.mqttBroker = webServer.arg(i);
         config.mqttBroker.trim();
@@ -249,7 +257,12 @@ void handleForm() {
       }
     }
     // Serial.print(message);
-    
+    Serial.printf("Expected: %f  Displayed: %f\n", voltsExpected, voltsDisplayed);
+    // Recalculate the calibration constant based on the entered observed voltages
+    // Empty or Alpha cells are ignored 
+    if ( ( voltsExpected > 1 ) && ( voltsDisplayed > 1)){
+      config.calConst = voltsExpected / (voltsDisplayed / config.calConst );
+    }
     saveConfiguration(confFile,config);
     printFile(confFile);
     formPage();
