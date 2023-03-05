@@ -46,14 +46,19 @@ void publishData(){
   if (client.connected()){
     char theData[2000];
     char tmpstr[100];
-    sprintf(theData,"{ \"Volts\":{\"C1\":%4.2f,\"C2\":%4.2f,\"C3\":%4.2f,\"C4\":%4.2f,\"C5\":%4.2f,\"C6\":%4.2f,\"C7\":%4.2f}, \"Label\":{",batVolts[0],batVolts[1],batVolts[2],batVolts[3],batVolts[4],batVolts[5],batVolts[6]);
+    int connectedCount = 0;
+    for ( int i=0; i < RELAYS;i++){
+      if (batteryConnected[i])
+        connectedCount++;
+    }
+    sprintf(theData,"{\"Connected\":%d,",connectedCount);
     for(int i=0; i< RELAYS;i++){
-      sprintf(tmpstr,"\"C%d\":\"%s\",",i+1,config.labelTXT[i].c_str());
+      sprintf(tmpstr,"\"%d. %s\":%4.2f,",i+1,config.labelTXT[i].c_str(),batVolts[i]);
       strcat(theData,tmpstr);
     }
     // Replace the trailing, with }
     theData[strlen(theData)-1] = '}';
-    strcat(theData,"}");
+    // strcat(theData,"}");
     Serial.print(config.mqttTopic);
     Serial.print(" = ");
     Serial.println(theData);
