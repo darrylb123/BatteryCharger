@@ -56,8 +56,8 @@ Config config;    // <- global configuration object
 
 // An array of charging time indexed by the measured voltage. Allows a flat battery to be charged longer and a fully charged battery to be charged for a short time
 // Volts                     0, 1,  2,  3,  4,  5,  6,  7,  8,    9,    10,   11,   12, 13, 14, 15, 16
-const int CHARGEMINUTES[] = {1, 1,  1,  1,  1,  30, 30, 30, 240,  240,  240,  100,  10, 1,  1,  1,  1};
-const float fullyCharged = 11.9;
+const int CHARGEMINUTES[] = {1, 1,  1,  1,  60,  30, 10, 1, 240,  240,  240,  100,  10, 1,  1,  1,  1};
+const float fullyCharged[] = {6.4,11.9};
 const byte        DNS_PORT = 53;
 String inputString;
 int stringComplete;
@@ -290,12 +290,15 @@ int batteryState(int batnum) {
   }
   
   batVolts[batnum] = analogRead(sensorPin) * config.calConst;
-  if (batVolts[batnum] > fullyCharged)
-      batteryCharged[batnum] = 1;
-  else
-      batteryCharged[batnum] = 0;
+  
   if (batVolts[batnum] > 4.0 && batVolts[batnum] < 15.2) { // Some chargers have 16V or so open circuit
       batteryConnected[batnum] = 1;
+      if ((batVolts[batnum] < 8.0) && (batVolts[batnum] > fullyCharged[0] )) // 6V Battery
+        batteryCharged[batnum] = 1;
+      if (batVolts[batnum] > fullyCharged[1]) //12V Battery
+        batteryCharged[batnum] = 1;
+  else
+      batteryCharged[batnum] = 0;
   } else {
       batteryConnected[batnum] = 0;
       batteryCharged[batnum] = 0;

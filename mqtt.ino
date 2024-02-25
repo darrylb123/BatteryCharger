@@ -42,10 +42,11 @@ void brokerConnect() {
   }
 }
 void publishData(){
-  brokerConnect();
+  // brokerConnect();
   if (client.connected()){
     char theData[2000];
     char tmpstr[100];
+    /* 
     int connectedCount = 0;
     for ( int i=0; i < RELAYS;i++){
       if (batteryConnected[i])
@@ -63,6 +64,7 @@ void publishData(){
     Serial.print(" = ");
     Serial.println(theData);
     client.publish(config.mqttTopic.c_str(),theData);
+    */
   }
   
 }
