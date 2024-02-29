@@ -6,9 +6,9 @@
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-void brokerConnect() {
+int brokerConnect() {
   if(config.mqttBroker.length() < 1){
-    return;
+    return(-1);
   }
   
   Serial.println("Connecting to MQTT Broker");
@@ -26,27 +26,32 @@ void brokerConnect() {
         if (client.connect(client_id.c_str(),config.mqttUser.c_str(),config.mqttPasswd.c_str())) {
         } else {
           Serial.print("failed with state ");
-          Serial.print(client.state());
+          Serial.println(client.state());
           delay(2000);
+          return(-2);
         }
       } else {
         Serial.println(" without user/password");
         if (client.connect(client_id.c_str())) {
         } else {
           Serial.print("failed with state ");
-          Serial.print(client.state());
+          Serial.println(client.state());
           delay(2000);
+          return(-2);
         }
       }
     }
   }
+  return(0);
 }
 void publishData(){
-  // brokerConnect();
+  if(brokerConnect()){
+    return;
+  }
   if (client.connected()){
     char theData[2000];
     char tmpstr[100];
-    /* 
+    
     int connectedCount = 0;
     for ( int i=0; i < RELAYS;i++){
       if (batteryConnected[i])
@@ -64,7 +69,7 @@ void publishData(){
     Serial.print(" = ");
     Serial.println(theData);
     client.publish(config.mqttTopic.c_str(),theData);
-    */
+    
   }
   
 }

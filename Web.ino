@@ -135,7 +135,7 @@ table, th, td {\
   strcat(responseHTML, tempstr);
 
 #if defined(NEEDMQTT)
-  sprintf(tempstr, "<TR><TD>MQTT Broker Hostname or IP Address :</TD><TD> <input type=\"text\" name=\"mqttBroker\" value=\"%s\"></TD><TR>\n\n",config.mqttBroker.c_str());
+  sprintf(tempstr, "<TR><TD>MQTT Broker Hostname or IP Address (eg public.mqtthq.com):</TD><TD> <input type=\"text\" name=\"mqttBroker\" value=\"%s\"></TD><TR>\n\n",config.mqttBroker.c_str());
   strcat(responseHTML, tempstr);
   sprintf(tempstr, "<TR><TD>MQTT Broker Port : </TD><TD><input type=\"text\" name=\"mqttPort\" value=\"%d\"></TD><TR>\n\n",config.mqttPort);
   strcat(responseHTML, tempstr);

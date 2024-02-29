@@ -231,7 +231,9 @@ void scanAll(){
 
   Serial.println(" ");
 #if defined(NEEDMQTT)
-  publishData();
+  if (WiFi.status() == WL_CONNECTED) {
+    publishData();
+  }
 #endif
   for (int i = 0; i < RELAYS; i++) {
     digitalWrite(gpioPin[i], ENERG);
