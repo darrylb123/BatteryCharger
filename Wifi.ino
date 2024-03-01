@@ -1,6 +1,7 @@
 // Wifi Functions choose between Station or SoftAP
 
-
+char *ssid = "";
+char *pw = "";
 
 void wifiStartup(){
   // Build Hostname
@@ -10,7 +11,14 @@ void wifiStartup(){
   WiFi.mode(WIFI_STA);
   delay(2000);
   WiFi.hostname(sapString);
-  WiFi.begin();
+  if(strlen(ssid)) {
+    Serial.print("Using supplied ssid/pw");
+    WiFi.begin(ssid,pw);
+  } else {
+    Serial.print("Using stored ssid/pw");
+    WiFi.begin();
+  }
+  
   delay(5000);
   
   if (WiFi.status() != WL_CONNECTED) {
