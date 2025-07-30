@@ -207,7 +207,7 @@ table, th, td {\
     sprintf(tempstr, "<H3>All Charged, delaying next charge cycle until needed, scan in %d minutes<h3>\n", (TESTCYCLE - (runMinutes % TESTCYCLE)));
     strcat(responseHTML, tempstr);
   } 
-  strcat(responseHTML, "<A href=\"/forcescan\">Scan Batteries</A> <BR> <A href=\"/forcecharge\">Force Charge Cycle</A> <BR><A href=\"/editlabels\">Edit Battery Labels</A> <BR><A href=\"/connectAP\">Connect to Wifi Network using ESP Touch App</A><BR><A href=\"/serverIndex\">Update Firmware or Reboot</A> </body></html>\n");
+  strcat(responseHTML, "<A href=\"/forcescan\">Scan Batteries</A> <BR> <A href=\"/forcecharge\">Force Charge Cycle</A> <BR><A href=\"/editlabels\">Edit Battery Labels</A> <BR><A href=\"/connectAP\">Connect to Wifi Network using Wifi Manager</A><BR><A href=\"/serverIndex\">Update Firmware or Reboot</A> </body></html>\n");
   if (DEBUG)
     Serial.print(responseHTML);
   delay(100);// Serial.print(responseHTML);
@@ -284,8 +284,9 @@ void forceScanCycle() {
 
 void connectAP(){
   
-  webServer.send(200, "text/plain", "Open ESPTouch: Smartconfig App to connect to Wifi Network"); 
-  
+  webServer.send(200, "text/html", "<html><body><A href=\"http://10.10.10.1\">Click to open WiFi Manager</A></body></html>"); 
+  webServer.close();
+  webServer.stop();
   delay(2000);
   
   mySmartConfig();

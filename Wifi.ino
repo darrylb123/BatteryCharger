@@ -1,7 +1,8 @@
 // Wifi Functions choose between Station or SoftAP
+#include <WiFiManager.h>
 
-char *ssid = "";
-char *pw = "";
+char ssid[] = "";
+char pw[] = "";
 
 void wifiStartup(){
   // Build Hostname
@@ -49,34 +50,33 @@ void wifiStartup(){
 
 // Configure wifi using ESP Smartconfig app on phone
 void mySmartConfig() {
+
+  WiFiServer server(80);
   // Wipe current credentials
   WiFi.disconnect(true); // deletes the wifi credentials
+  // WiFiManager
+  // Local intialization. Once its business is done, there is no need to keep it around
+  WiFiManager wifiManager;
   
-  WiFi.mode(WIFI_STA);
-  delay(2000);
-  WiFi.begin();
-  WiFi.beginSmartConfig();
+  // Uncomment and run it once, if you want to erase all the stored information
+  wifiManager.resetSettings();
+  
+  // set custom ip for portal
+  //wifiManager.setAPConfig(IPAddress(10,0,1,1), IPAddress(10,0,1,1), IPAddress(255,255,255,0));
 
-  //Wait for SmartConfig packet from mobile
-  Serial.println("Waiting for SmartConfig.");
-  while (!WiFi.smartConfigDone()) {
-    delay(500);
-    Serial.print(".");
-  }
+  // fetches ssid and pass from eeprom and tries to connect
+  // if it does not connect it starts an access point with the specified name
+  // here  "AutoConnectAP"
+  // and goes into a blocking loop awaiting configuration
+  wifiManager.autoConnect(sapString);
+  // or use this for auto generated name ESP + ChipID
+  //wifiManager.autoConnect();
+  
+  // if you get here you have connected to the WiFi
+  Serial.println("Connected.");
+  ESP.restart();
+  server.begin();
 
-  Serial.println("");
-  Serial.println("SmartConfig received.");
-
-  //Wait for WiFi to connect to AP
-  Serial.println("Waiting for WiFi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
-  WiFi.setAutoReconnect(true);
-  WiFi.persistent(true);
 }
 
 
