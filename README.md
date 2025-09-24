@@ -22,3 +22,7 @@ Electricals drawings by Qelectrotech.
 
 ![alt text](internal.jpg "Relay module wiring")
 ![alt text](external.jpg "External strip wiring")
+
+Alternative jumpering and resistor locations
+![alt text](front.jpg "Front showing 1k resistor")
+![alt text](rear.jpg "Rear showing jumpers and 15k resistor")
